@@ -25,6 +25,34 @@
 **展示页**
 - 托管价格表、服务内容、B 站主页/直播间、微信联系方式（悬停显示二维码）
 
+## 界面预览
+
+后台没有免密试用入口，这里放几张实际界面截图，想部署的人可以先看看长什么样。
+
+**老板端**
+
+| 首页（展示 + 价格表） | 口令登录 |
+| --- | --- |
+| ![首页](screenshots/01-home.png) | ![口令页](screenshots/02-passcode.png) |
+
+| 老板进度页（每日 / 周常 / 活动 / 挑战一目了然） |
+| --- |
+| ![老板进度页](screenshots/03-boss-progress.png) |
+
+**代肝后台**
+
+| 后台登录（凭密码 / Token，无免密试用） | 后台总览（续订提醒 + 老板列表） |
+| --- | --- |
+| ![后台登录](screenshots/04-admin-login.png) | ![后台总览](screenshots/05-admin-list.png) |
+
+| 老板编辑器（快捷打卡 + 全部登记项） |
+| --- |
+| ![老板编辑器](screenshots/06-admin-editor.png) |
+
+| 新增老板（手机尾号自动生成口令） | 活动编辑（名称/图片全服同步） |
+| --- | --- |
+| ![新增老板](screenshots/07-new-boss.png) | ![活动编辑](screenshots/08-event-editor.png) |
+
 ## 两种部署方式（同一份代码，自动识别）
 
 | | GitHub Pages 版 | 服务器版（Docker） |
