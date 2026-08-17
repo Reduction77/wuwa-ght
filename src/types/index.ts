@@ -1,4 +1,4 @@
-export type PackageTier = 1 | 2 | 3 | 4;
+export type PackageTier = 1 | 2 | 3 | 4 | 5;
 
 export interface EventItem {
   name: string;
@@ -13,7 +13,7 @@ export interface Boss {
   account: string;
   /** 老板查看口令 */
   passcode: string;
-  /** 1 日体 | 2 日体+周常 | 3 日体+周常+大活动 | 4 全托 */
+  /** 1 日体 | 2 日体+周常 | 3 日体+周常+大活动 | 4 全托 | 5 舰长（日体+周常+大活动） */
   tier: PackageTier;
   /** 周期天数：默认 30，一个版本 42，也可自定义任意天数 */
   cycleDays: number;
@@ -49,6 +49,7 @@ export const TIER_LABEL: Record<PackageTier, string> = {
   2: '日体 + 周常',
   3: '日体 + 周常 + 大活动',
   4: '全托',
+  5: '舰长',
 };
 
 export const TIER_PRICE: Record<PackageTier, string> = {
@@ -56,4 +57,5 @@ export const TIER_PRICE: Record<PackageTier, string> = {
   2: '90r / 月',
   3: '130r / 月',
   4: '235r / 月',
+  5: '舰长专属',
 };

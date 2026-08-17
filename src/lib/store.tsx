@@ -47,6 +47,8 @@ interface Store {
   setAccepting: (on: boolean) => void;
   /** 整包替换数据（从本地备份恢复时用） */
   importData: (data: SiteData) => void;
+  /** 同步活动名称/图片到所有老板（同一版本活动全服一样；完成状态仍各自独立） */
+  syncEventMeta: (kind: 'big' | number, patch: { name?: string; image?: string }) => void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -240,6 +242,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [touch]
   );
 
+  const syncEventMeta = useCallback(
+    (kind: 'big' | number, patch: { name?: string; image?: string }) => {
+      const cur = dataRef.current;
+      const bosses = cur.bosses.map((b) => {
+        if (kind === 'big') return { ...b, bigEvent: { ...b.bigEvent, ...patch } };
+        const arr = [...b.smallEvents];
+        if (arr[kind]) arr[kind] = { ...arr[kind], ...patch };
+        return { ...b, smallEvents: arr };
+      });
+      touch({ ...cur, bosses });
+    },
+    [touch]
+  );
+
   const save = useCallback(async () => {
     setSaveState('saving');
     setSaveError('');
@@ -283,12 +299,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       renewBoss,
       setAccepting,
       importData,
+      syncEventMeta,
       addBoss,
       removeBoss,
       save,
       reload,
     }),
-    [data, loading, dirty, saveState, saveError, github, serverMode, adminKey, source, setGithub, setAdminKey, updateBoss, mutateBoss, renewBoss, setAccepting, importData, addBoss, removeBoss, save, reload]
+    [data, loading, dirty, saveState, saveError, github, serverMode, adminKey, source, setGithub, setAdminKey, updateBoss, mutateBoss, renewBoss, setAccepting, importData, syncEventMeta, addBoss, removeBoss, save, reload]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

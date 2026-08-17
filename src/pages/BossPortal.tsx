@@ -79,7 +79,7 @@ export default function BossPortal({ onBack }: Props) {
         </h2>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: '#7e96ad' }}>
           口令就是你<b style={{ color: '#2a7fd4' }}>手机号的后四位</b>（账号绑定的那个号）。
-          如果你和别的老板尾号一样，我会在后面补个数字——比如 6962 重复了就试试 <b style={{ color: '#2a7fd4' }}>69621</b>，还不行就 69622、69623……
+          如果你和别的老板尾号一样，我会在后面补个数字——比如 0001 重复了就试试 <b style={{ color: '#2a7fd4' }}>00011</b>，还不行就 00012、00013……
           如果你找我设置过自定义口令，直接输你设的那个就行。
         </p>
         <p className="mt-1.5 text-xs" style={{ color: '#9db4c9' }}>

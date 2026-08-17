@@ -7,6 +7,7 @@ import { uploadRemoteImage } from '@/lib/github';
 import { uploadServerImage } from '@/lib/server';
 import { CheckCircle2, Circle, ImagePlus, RotateCcw, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface Props {
   boss: Boss;
@@ -109,6 +110,7 @@ export default function BossEditor({ boss }: Props) {
               <option value={2}>日体 + 周常（90r/月）</option>
               <option value={3}>日体 + 周常 + 大活动（130r/月）</option>
               <option value={4}>全托（235r/月）</option>
+              <option value={5}>舰长（日体 + 周常 + 大活动 · 30天）</option>
             </select>
           </Field>
           <Field label="托管周期">
@@ -173,7 +175,7 @@ export default function BossEditor({ boss }: Props) {
           <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>点「编辑」可改活动名称和图片；不上传图片时老板端不会留空白框</p>
           <div className="mt-4 space-y-3">
             <EventCard event={boss.bigEvent} badge="版本大活动" editable onToggle={() => mutateBoss(boss.id, (b) => ({ ...b, bigEvent: { ...b.bigEvent, done: !b.bigEvent.done } }))} onEdit={() => setEventEdit({ kind: 'big' })} />
-            {boss.tier >= 4 && (
+            {boss.tier === 4 && (
               <div className="grid gap-3 md:grid-cols-3">
                 {boss.smallEvents.map((e, i) => (
                   <EventCard
@@ -198,7 +200,7 @@ export default function BossEditor({ boss }: Props) {
       )}
 
       {/* 挑战 */}
-      {boss.tier >= 4 && (
+      {boss.tier === 4 && (
         <section className="paper-card px-6 py-6">
           <h3 className="font-display text-lg" style={{ color: '#22405c' }}>周期挑战登记</h3>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -345,7 +347,7 @@ function CycleDaysPicker({ value, onChange }: { value: number; onChange: (days: 
 
 /* ---------- 活动名称 / 图片编辑弹层 ---------- */
 function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind: 'big' | number }; github: ReturnType<typeof useStore>['github']; onClose: () => void }) {
-  const { mutateBoss, serverMode, adminKey } = useStore();
+  const { syncEventMeta, serverMode, adminKey } = useStore();
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -354,13 +356,8 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
   const idx = typeof edit.kind === 'number' ? edit.kind : -1;
   const event: EventItem = isBig ? boss.bigEvent : boss.smallEvents[idx];
 
-  const apply = (patch: Partial<EventItem>) =>
-    mutateBoss(boss.id, (b) => {
-      if (isBig) return { ...b, bigEvent: { ...b.bigEvent, ...patch } };
-      const arr = [...b.smallEvents];
-      arr[idx] = { ...arr[idx], ...patch };
-      return { ...b, smallEvents: arr };
-    });
+  // 名称/图片是全服共享的（同一版本活动大家都一样），改动会同步到所有老板；完成状态仍各记各的
+  const apply = (patch: { name?: string; image?: string }) => syncEventMeta(isBig ? 'big' : idx, patch);
 
   const pickImage = async (file: File) => {
     setBusy(true);
@@ -383,12 +380,13 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#22405c]/35 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="paper-card view-swap w-full max-w-md px-6 py-6" onClick={(e) => e.stopPropagation()}>
         <h4 className="font-display text-lg" style={{ color: '#22405c' }}>
           编辑{isBig ? '大活动' : `小活动 ${idx + 1}`}
         </h4>
+        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>同一版本活动全服一样，这里的名称和图片会同步到所有老板</p>
         <Field label="活动名称" className="mt-4">
           <input className="input-soft" value={event.name} placeholder="输入当前版本的活动名" onChange={(e) => apply({ name: e.target.value })} />
         </Field>
@@ -436,7 +434,8 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

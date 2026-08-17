@@ -110,11 +110,11 @@ export default function BossProgress({ boss }: Props) {
           <SectionHead
             icon={<Sparkles size={20} />}
             title="版本活动"
-            desc={boss.tier >= 4 ? '每个托管周期 1 个大活动 + 3 个小活动' : '每个托管周期 1 个大活动'}
+            desc={boss.tier === 4 ? '每个托管周期 1 个大活动 + 3 个小活动' : '每个托管周期 1 个大活动'}
           />
           <div className="mt-4 space-y-3">
             <EventCard event={boss.bigEvent} badge="版本大活动" />
-            {boss.tier >= 4 && (
+            {boss.tier === 4 && (
               <div className="grid gap-3 md:grid-cols-3">
                 {boss.smallEvents.map((e, i) => (
                   <EventCard key={i} event={e} badge={`小活动 ${i + 1}`} />
@@ -126,7 +126,7 @@ export default function BossProgress({ boss }: Props) {
       )}
 
       {/* 挑战任务 */}
-      {boss.tier >= 4 && (
+      {boss.tier === 4 && (
         <section className="paper-card rise-in rise-in-4 px-6 py-6">
           <SectionHead icon={<Swords size={20} />} title="周期挑战" desc="每个托管周期各完成一次" />
           <div className="mt-4 grid gap-3 sm:grid-cols-3">

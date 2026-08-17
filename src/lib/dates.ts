@@ -42,22 +42,32 @@ export function daysLeftInCycle(boss: Boss, date = todayStr()): number {
   return Math.round((end - cur) / 86400000);
 }
 
-/** 周期内的周数（每周 7 天，从开始日算起） */
-export function cycleWeeks(boss: Boss): number {
-  return Math.ceil(boss.cycleDays / 7);
+/** 开始日所在周的周一（周常按真实日历周对齐：周一 ~ 周日，和游戏每周一刷新一致） */
+function weekMonday(boss: Boss): string {
+  const d = new Date(boss.startDate + 'T00:00:00');
+  const dow = (d.getDay() + 6) % 7; // 周一 = 0
+  return addDays(boss.startDate, -dow);
 }
 
-/** 本周（周期内第 weekIdx 周）的日期范围 */
+/** 周期覆盖的日历周数 */
+export function cycleWeeks(boss: Boss): number {
+  const d = new Date(boss.startDate + 'T00:00:00');
+  const dow = (d.getDay() + 6) % 7;
+  return Math.ceil((dow + boss.cycleDays) / 7);
+}
+
+/** 第 weekIdx 周的日期范围（真实日历周：周一 ~ 周日） */
 export function weekRange(boss: Boss, weekIdx: number): { from: string; to: string } {
-  const from = addDays(boss.startDate, weekIdx * 7);
-  const to = addDays(boss.startDate, Math.min(weekIdx * 7 + 6, boss.cycleDays - 1));
-  return { from, to };
+  const from = addDays(weekMonday(boss), weekIdx * 7);
+  return { from, to: addDays(from, 6) };
 }
 
 export function currentWeekIndex(boss: Boss): number {
   const day = cycleDayIndex(boss);
   if (day <= 0) return -1;
-  return Math.floor((day - 1) / 7);
+  const d = new Date(boss.startDate + 'T00:00:00');
+  const dow = (d.getDay() + 6) % 7;
+  return Math.floor((dow + day - 1) / 7);
 }
 
 export interface BossStats {
@@ -84,7 +94,7 @@ export function bossStats(b: Boss): BossStats {
     tasksTotal += 1;
     if (b.bigEvent.done) tasksDone += 1;
   }
-  if (b.tier >= 4) {
+  if (b.tier === 4) {
     tasksTotal += 3 + 3; // 小活动 + 矩阵/海城/深塔
     b.smallEvents.forEach((e) => e.done && tasksDone++);
     if (b.challenges.matrix) tasksDone++;

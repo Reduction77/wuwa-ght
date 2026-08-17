@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { bossStats, cycleEndDate, daysLeftInCycle, fmtCN, todayStr } from '@/lib/dates';
 import { emptyBoss, makePasscode, useStore } from '@/lib/store';
 import { testConnection, type GithubConfig } from '@/lib/github';
@@ -14,18 +15,17 @@ interface Props {
 export default function Admin({ onBack }: Props) {
   const store = useStore();
   const { data, github, setGithub, serverMode, adminKey, setAdminKey } = store;
-  const [demoMode, setDemoMode] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
 
-  const entered = (serverMode ? !!adminKey : !!github) || demoMode;
+  const entered = serverMode ? !!adminKey : !!github;
   const selected = data.bosses.find((b) => b.id === selectedId) ?? null;
 
   if (store.loading) {
     return <div className="flex min-h-[70vh] items-center justify-center font-display text-lg" style={{ color: '#5b7a97' }}>正在读取数据…</div>;
   }
   if (!entered) {
-    return <LoginGate onBack={onBack} onDemo={() => setDemoMode(true)} onConnected={(c) => setGithub(c)} onKey={(k) => setAdminKey(k)} />;
+    return <LoginGate onBack={onBack} onConnected={(c) => setGithub(c)} onKey={(k) => setAdminKey(k)} />;
   }
 
   return (
@@ -53,13 +53,9 @@ export default function Admin({ onBack }: Props) {
                 <Unplug size={14} /> 退出后台
               </button>
             )
-          ) : github ? (
+          ) : (
             <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={() => setGithub(null)}>
               <Unplug size={14} /> 断开 GitHub
-            </button>
-          ) : (
-            <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={() => setDemoMode(false)}>
-              <Github size={14} /> 连接 GitHub
             </button>
           )}
           <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={() => store.reload()}>
@@ -389,11 +385,17 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
     b.tier = form.tier;
     b.cycleDays = form.cycleDays;
     b.startDate = form.startDate;
+    // 同一版本的活动全服一样：新老板直接继承现有活动名称和图片
+    const src = data.bosses[0];
+    if (src) {
+      b.bigEvent = { name: src.bigEvent.name, image: src.bigEvent.image, done: false };
+      b.smallEvents = src.smallEvents.map((e) => ({ name: e.name, image: e.image, done: false }));
+    }
     addBoss(b);
     onCreated(b.id);
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#22405c]/35 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="paper-card view-swap w-full max-w-md px-6 py-6" onClick={(e) => e.stopPropagation()}>
         <h4 className="font-display text-lg" style={{ color: '#22405c' }}>新增老板</h4>
@@ -405,7 +407,7 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>账号（可打码，可空）</span>
-            <input className="input-soft" placeholder="例如 177……6962" value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} />
+            <input className="input-soft" placeholder="例如 138……0001" value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} />
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>老板手机号后四位 *（自动生成登录口令）</span>
@@ -429,11 +431,15 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
               <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>托管套餐</span>
-              <select className="input-soft" value={form.tier} onChange={(e) => setForm({ ...form, tier: Number(e.target.value) as Boss['tier'] })}>
+              <select className="input-soft" value={form.tier} onChange={(e) => {
+                const tier = Number(e.target.value) as Boss['tier'];
+                setForm({ ...form, tier, cycleDays: tier === 5 ? 30 : form.cycleDays });
+              }}>
                 <option value={1}>日体（3r/天）</option>
                 <option value={2}>日体 + 周常（90r/月）</option>
                 <option value={3}>日体 + 周常 + 大活动（130r/月）</option>
                 <option value={4}>全托（235r/月）</option>
+                <option value={5}>舰长（日体 + 周常 + 大活动 · 30天）</option>
               </select>
             </label>
             <label className="block">
@@ -453,7 +459,8 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -495,7 +502,7 @@ function SaveBar() {
 }
 
 /* ---------- 登录门：服务器密码 / GitHub 连接 / 本地模式 ---------- */
-function LoginGate({ onBack, onDemo, onConnected, onKey }: { onBack: () => void; onDemo: () => void; onConnected: (c: GithubConfig) => void; onKey: (key: string) => void }) {
+function LoginGate({ onBack, onConnected, onKey }: { onBack: () => void; onConnected: (c: GithubConfig) => void; onKey: (key: string) => void }) {
   const { serverMode } = useStore();
   const [form, setForm] = useState<GithubConfig>({ token: '', owner: '', repo: '', branch: 'main' });
   const [key, setKey] = useState('');
@@ -538,9 +545,6 @@ function LoginGate({ onBack, onDemo, onConnected, onKey }: { onBack: () => void;
           {err && <p className="mt-3 text-sm font-semibold" style={{ color: '#e05548' }}>{err}</p>}
           <button type="button" disabled={busy || !key.trim()} onClick={enterServer} className="btn-primary mt-6 w-full">
             {busy ? '验证中…' : '进入后台'}
-          </button>
-          <button type="button" onClick={onDemo} className="btn-ghost mt-3 w-full">
-            先看看，本地试用一下
           </button>
           <button type="button" onClick={onBack} className="mt-4 w-full text-center text-xs font-semibold" style={{ color: '#8aa2b8' }}>
             <ArrowLeft size={12} className="mr-1 inline" />返回首页
@@ -598,9 +602,6 @@ function LoginGate({ onBack, onDemo, onConnected, onKey }: { onBack: () => void;
         {err && <p className="mt-3 text-sm font-semibold" style={{ color: '#e05548' }}>{err}</p>}
         <button type="button" disabled={busy || !form.token || !form.owner || !form.repo} onClick={connect} className="btn-primary mt-6 w-full">
           {busy ? '连接中…' : '连接并进入后台'}
-        </button>
-        <button type="button" onClick={onDemo} className="btn-ghost mt-3 w-full">
-          先不连接，本地试用一下
         </button>
         <button type="button" onClick={onBack} className="mt-4 w-full text-center text-xs font-semibold" style={{ color: '#8aa2b8' }}>
           <ArrowLeft size={12} className="mr-1 inline" />返回首页
