@@ -75,7 +75,7 @@ export default function BossPortal({ onBack }: Props) {
           <KeyRound size={26} />
         </span>
         <h2 className="font-display mt-4 text-2xl" style={{ color: '#22405c' }}>
-          老板，报上口令
+          请出示口令
         </h2>
         <p className="mt-2 text-sm leading-relaxed" style={{ color: '#7e96ad' }}>
           口令就是你<b style={{ color: '#2a7fd4' }}>手机号的后四位</b>（账号绑定的那个号）。

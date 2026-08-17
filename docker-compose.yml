@@ -1,8 +1,8 @@
 # 服务器版一键部署：docker compose up -d
 services:
-  wuwa-tuoguan:
+  wuwa-ght:
     build: .
-    container_name: wuwa-tuoguan
+    container_name: wuwa-ght
     ports:
       - "80:80"
     environment:

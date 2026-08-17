@@ -44,18 +44,18 @@ docker compose up -d   # 先改 docker-compose.yml 里的 ADMIN_PASSWORD
 或纯 Docker：
 
 ```bash
-docker build -t wuwa-tuoguan .
-docker run -d --name wuwa-tuoguan -p 80:80 \
+docker build -t wuwa-ght .
+docker run -d --name wuwa-ght -p 80:80 \
   -e ADMIN_PASSWORD=换成你自己的管理密码 \
   -v wuwa-data:/data \
-  wuwa-tuoguan
+  wuwa-ght
 ```
 
-数据（`data.json` + 活动图片）都在 `/data` 卷里，备份用 `docker cp wuwa-tuoguan:/data ./备份` 或后台「备份到本地」按钮。
+数据（`data.json` + 活动图片）都在 `/data` 卷里，备份用 `docker cp wuwa-ght:/data ./备份` 或后台「备份到本地」按钮。
 
 ## 技术栈
 
-React 19 + TypeScript + Vite + Tailwind CSS；服务器版用零依赖 Node 小服务（`server.js`）托管页面和数据接口，不需要装数据库。
+React 19 + TypeScript + Vite + Tailwind CSS + shadcn/ui；服务器版用零依赖 Node 小服务（`server.js`）托管页面和数据接口，不需要装数据库。
 
 ## 本地开发
 

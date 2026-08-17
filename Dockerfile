@@ -1,11 +1,21 @@
 # ── 构建阶段：打包前端 ──
 FROM node:20-alpine AS build
 WORKDIR /app
-COPY package*.json ./
-# 明确使用 package-lock.json 安装全部依赖（含 devDependencies，tsc/vite 都在这里）
-RUN npm ci --include=dev
+
+# 只先拷依赖清单，利用缓存；不随包带 node_modules（避免 glibc/musl 与缓存污染）
+COPY package.json package-lock.json ./
+
+# 全新安装全部依赖（含 devDependencies：typescript / vite 都在这里）
+# --include=dev 确保即使 NODE_ENV=production 也装 devDeps
+RUN npm ci --include=dev --no-audit --no-fund
+
+# 装完先验证构建工具确实就位，缺了立刻在这里报清楚的错
+RUN test -f node_modules/typescript/lib/tsc.js || (echo 'ERROR: typescript 未安装' && exit 1)
+RUN test -f node_modules/vite/bin/vite.js || (echo 'ERROR: vite 未安装' && exit 1)
+
+# 再拷源码并构建（用 node 直连，避开 .bin 符号链接问题）
 COPY . .
-RUN npm run build
+RUN node node_modules/typescript/lib/tsc.js -b && node node_modules/vite/bin/vite.js build
 
 # ── 运行阶段：Node 一体服务（页面 + API + 数据存储）──
 FROM node:20-alpine

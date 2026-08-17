@@ -30,4 +30,3 @@ jobs:
           git tag v1.0.0
           git push origin v1.0.0
           gh release create v1.0.0 --title "v1.0.0 首个版本" --notes-file RELEASE_NOTES.md
-

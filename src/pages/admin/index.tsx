@@ -587,7 +587,7 @@ function LoginGate({ onBack, onDemo, onConnected, onKey }: { onBack: () => void;
             </label>
             <label className="block">
               <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>仓库名</span>
-              <input className="input-soft" placeholder="例如 wuwa-tuoguan" value={form.repo} onChange={(e) => setForm({ ...form, repo: e.target.value.trim() })} />
+              <input className="input-soft" placeholder="例如 wuwa-ght" value={form.repo} onChange={(e) => setForm({ ...form, repo: e.target.value.trim() })} />
             </label>
           </div>
           <label className="block">
