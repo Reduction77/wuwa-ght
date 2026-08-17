@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 207 100% 97.5%;
+    --foreground: 213 32% 22%;
+    --card: 0 0% 100%;
+    --card-foreground: 213 32% 22%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 213 32% 22%;
+    --primary: 206 100% 59%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 208 90% 93%;
+    --secondary-foreground: 211 60% 35%;
+    --muted: 208 60% 94%;
+    --muted-foreground: 211 20% 47%;
+    --accent: 208 90% 92%;
+    --accent-foreground: 211 70% 38%;
+    --destructive: 4 80% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 208 55% 87%;
+    --input: 208 55% 84%;
+    --ring: 206 100% 59%;
+    --radius: 1rem;
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Baloo 2', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC', sans-serif;
+  background-color: #f3f9ff;
+  color: #2b3f54;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+.font-display {
+  font-family: 'ZCOOL KuaiLe', 'Baloo 2', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+/* ---------- 优雅过渡动画 ---------- */
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(22px); filter: blur(10px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+.rise-in { animation: rise-in 0.85s cubic-bezier(0.22, 0.9, 0.28, 1) both; }
+.rise-in-1 { animation-delay: 0.08s; }
+.rise-in-2 { animation-delay: 0.18s; }
+.rise-in-3 { animation-delay: 0.3s; }
+.rise-in-4 { animation-delay: 0.42s; }
+.rise-in-5 { animation-delay: 0.54s; }
+
+@keyframes view-swap {
+  from { opacity: 0; transform: translateY(14px); filter: blur(8px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+.view-swap { animation: view-swap 0.55s cubic-bezier(0.22, 0.9, 0.28, 1) both; }
+
+@keyframes float-slow {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(0, -26px, 0) scale(1.05); }
+}
+.float-slow { animation: float-slow 11s ease-in-out infinite; }
+.float-slower { animation: float-slow 16s ease-in-out infinite reverse; }
+
+@keyframes check-pop {
+  0%   { transform: scale(0.4); }
+  55%  { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+.check-pop { animation: check-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+@keyframes bar-fill {
+  from { width: 0; }
+}
+.bar-fill { animation: bar-fill 1.1s cubic-bezier(0.22, 0.9, 0.28, 1) both; }
+
+@keyframes today-breathe {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(56, 158, 255, 0.45); }
+  50%      { box-shadow: 0 0 0 6px rgba(56, 158, 255, 0); }
+}
+.today-breathe { animation: today-breathe 2.4s ease-in-out infinite; }
+
+@keyframes wiggle {
+  0%, 100% { transform: rotate(-3deg); }
+  50%      { transform: rotate(3deg); }
+}
+
+/* ---------- 通用小组件样式 ---------- */
+.paper-card {
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid #d9e9f9;
+  border-radius: 1.5rem;
+  box-shadow: 0 10px 40px -18px rgba(50, 120, 200, 0.25);
+  backdrop-filter: blur(6px);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.75rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-white font-semibold transition-all duration-300;
+  background: linear-gradient(135deg, #45a9ff, #1e8bf0);
+  box-shadow: 0 8px 24px -8px rgba(30, 139, 240, 0.55);
+}
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 14px 30px -10px rgba(30, 139, 240, 0.6); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.55; transform: none; cursor: not-allowed; }
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5 font-semibold transition-all duration-300;
+  color: #2a7fd4;
+  background: #e7f3ff;
+  border: 1px solid #cfe7fd;
+}
+.btn-ghost:hover { background: #d9ecff; transform: translateY(-1px); }
+
+.input-soft {
+  @apply w-full rounded-xl px-4 py-2.5 text-sm outline-none transition-all duration-200;
+  background: #f0f7ff;
+  border: 1.5px solid #d4e7f9;
+  color: #2b3f54;
+}
+.input-soft:focus { border-color: #45a9ff; box-shadow: 0 0 0 3px rgba(69, 169, 255, 0.18); background: #fff; }
+
+/* 弹出列表统一圆角（Firefox / 新版 Chrome·Edge 生效，其他浏览器由系统渲染） */
+select.input-soft,
+select.input-soft::picker(select) {
+  border-radius: 1rem;
+  border: 1.5px solid #d4e7f9;
+  padding: 0.4rem;
+  box-shadow: 0 16px 40px -12px rgba(50, 120, 200, 0.35);
+}
+select.input-soft option {
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.8rem;
+  color: #2b3f54;
+}
+select.input-soft option:checked {
+  background: linear-gradient(135deg, #45a9ff, #1e8bf0);
+  color: #fff;
+}
+
+.divider-soft { border: none; border-top: 1.5px dashed #cfe3f6; }
+
+::selection { background: rgba(69, 169, 255, 0.28); }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #bcd9f2; border-radius: 8px; border: 2px solid #f3f9ff; }
+::-webkit-scrollbar-thumb:hover { background: #93c3ea; }
+
+/* 下拉框：去掉原生箭头，换成醒目的蓝色圆头箭头，提示可以点开。
+   放在文件末尾、不进任何 layer，确保盖过上面 background 简写。 */
+select.input-soft {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 2.8rem;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%231e8bf0' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.85rem center;
+  background-size: 1.15rem;
+  cursor: pointer;
+}
+select.input-soft:hover { border-color: #9dcdf3; }
+select.input-soft:focus { background-color: #fff; }

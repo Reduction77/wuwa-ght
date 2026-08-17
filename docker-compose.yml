@@ -1,0 +1,17 @@
+# 服务器版一键部署：docker compose up -d
+services:
+  wuwa-tuoguan:
+    build: .
+    container_name: wuwa-tuoguan
+    ports:
+      - "80:80"
+    environment:
+      # 后台管理密码，上线前务必改成你自己的
+      - ADMIN_PASSWORD=admin888
+    volumes:
+      # 托管数据（data.json + 上传的活动图片）持久化到这个卷
+      - wuwa-data:/data
+    restart: unless-stopped
+
+volumes:
+  wuwa-data:

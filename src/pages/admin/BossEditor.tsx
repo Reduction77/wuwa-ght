@@ -1,0 +1,459 @@
+import type { Boss, EventItem } from '@/types';
+import { useStore } from '@/lib/store';
+import DayGrid from '@/components/DayGrid';
+import EventCard from '@/components/EventCard';
+import { addDays, cycleWeeks, currentWeekIndex, fmtCN, todayStr, weekRange } from '@/lib/dates';
+import { uploadRemoteImage } from '@/lib/github';
+import { uploadServerImage } from '@/lib/server';
+import { CheckCircle2, Circle, ImagePlus, RotateCcw, Trash2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+
+interface Props {
+  boss: Boss;
+}
+
+/** 后台：单个老板的完整编辑器 */
+export default function BossEditor({ boss }: Props) {
+  const { mutateBoss, renewBoss, github } = useStore();
+  const [eventEdit, setEventEdit] = useState<null | { kind: 'big' | number }>(null);
+
+  const toggleDaily = (date: string) =>
+    mutateBoss(boss.id, (b) => ({
+      ...b,
+      daily: b.daily.includes(date) ? b.daily.filter((d) => d !== date) : [...b.daily, date].sort(),
+    }));
+
+  const toggleWeek = (i: number) =>
+    mutateBoss(boss.id, (b) => ({
+      ...b,
+      weekly: b.weekly.includes(i) ? b.weekly.filter((w) => w !== i) : [...b.weekly, i].sort((a, z) => a - z),
+    }));
+
+  const toggleChallenge = (key: 'matrix' | 'sea' | 'tower') =>
+    mutateBoss(boss.id, (b) => ({ ...b, challenges: { ...b.challenges, [key]: !b.challenges[key] } }));
+
+  const today = todayStr();
+  const todayDone = boss.daily.includes(today);
+  const weeks = cycleWeeks(boss);
+  const curWeekIdx = currentWeekIndex(boss);
+  const weekDone = curWeekIdx >= 0 && boss.weekly.includes(curWeekIdx);
+  const ended = today > addDays(boss.startDate, boss.cycleDays - 1);
+
+  return (
+    <div className="space-y-5">
+      {/* 已到期提示 + 一键续期 */}
+      {ended && (
+        <div className="paper-card flex flex-wrap items-center gap-3 px-6 py-5" style={{ background: 'rgba(250,246,255,0.92)', borderColor: '#e2d5f8' }}>
+          <div className="mr-auto">
+            <p className="font-display text-lg" style={{ color: '#5b3f8f' }}>本周期已到期</p>
+            <p className="text-xs" style={{ color: '#9a86bd' }}>老板续费了就点右边按钮，从今天开始一个新周期，勾选记录会自动清零（活动名称和图片保留）</p>
+          </div>
+          <button
+            type="button"
+            className="btn-primary"
+            style={{ background: 'linear-gradient(135deg,#a78bfa,#7c5cc9)', boxShadow: '0 8px 24px -8px rgba(124,92,201,0.55)' }}
+            onClick={() => {
+              if (confirm(`确定从 today 开始为「${boss.name}」开一个新周期吗？当前周期的打卡和活动完成状态会清零。`.replace('today', fmtCN(today)))) {
+                renewBoss(boss.id);
+              }
+            }}
+          >
+            <RotateCcw size={16} /> 一键续期（{fmtCN(today)} 起）
+          </button>
+        </div>
+      )}
+
+      {/* 今日快捷登记 */}
+      <div className="paper-card flex flex-wrap items-center gap-3 px-6 py-5">
+        <div className="mr-auto">
+          <p className="font-display text-lg" style={{ color: '#22405c' }}>今日快捷登记</p>
+          <p className="text-xs" style={{ color: '#8aa2b8' }}>每天点这两下就完事，老板立刻能看到</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => toggleDaily(today)}
+          className={todayDone ? 'btn-ghost' : 'btn-primary'}
+        >
+          {todayDone ? <CheckCircle2 size={17} /> : <Circle size={17} />}
+          {todayDone ? '今日体力已清 ✓ 点我撤销' : `打卡：今日体力已清（${fmtCN(today)}）`}
+        </button>
+        {boss.tier >= 2 && curWeekIdx >= 0 && (
+          <button
+            type="button"
+            onClick={() => toggleWeek(curWeekIdx)}
+            className={weekDone ? 'btn-ghost' : 'btn-primary'}
+            style={weekDone ? undefined : { background: 'linear-gradient(135deg,#45c6a5,#2fbf8f)', boxShadow: '0 8px 24px -8px rgba(47,191,143,0.55)' }}
+          >
+            {weekDone ? <CheckCircle2 size={17} /> : <Circle size={17} />}
+            {weekDone ? '本周周常已清 ✓ 点我撤销' : `打卡：本周周常已清（第 ${curWeekIdx + 1} 周）`}
+          </button>
+        )}
+      </div>
+
+      {/* 基本设置 */}
+      <section className="paper-card px-6 py-6">
+        <h3 className="font-display text-lg" style={{ color: '#22405c' }}>老板信息与套餐</h3>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <Field label="老板称呼">
+            <input className="input-soft" value={boss.name} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, name: e.target.value }))} />
+          </Field>
+          <Field label="账号（可打码）">
+            <input className="input-soft" value={boss.account} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, account: e.target.value }))} />
+          </Field>
+          <Field label="查看口令（默认手机后四位，老板想要自定义就直接改）">
+            <input className="input-soft font-bold tracking-widest" value={boss.passcode} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, passcode: e.target.value.trim() }))} />
+          </Field>
+          <Field label="托管套餐">
+            <select className="input-soft" value={boss.tier} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, tier: Number(e.target.value) as Boss['tier'] }))}>
+              <option value={1}>日体（3r/天）</option>
+              <option value={2}>日体 + 周常（90r/月）</option>
+              <option value={3}>日体 + 周常 + 大活动（130r/月）</option>
+              <option value={4}>全托（235r/月）</option>
+            </select>
+          </Field>
+          <Field label="托管周期">
+            <CycleDaysPicker
+              value={boss.cycleDays}
+              onChange={(days) => mutateBoss(boss.id, (b) => ({ ...b, cycleDays: days }))}
+            />
+          </Field>
+          <Field label="开始日期">
+            <input type="date" className="input-soft" value={boss.startDate} onChange={(e) => e.target.value && mutateBoss(boss.id, (b) => ({ ...b, startDate: e.target.value }))} />
+          </Field>
+        </div>
+        <Field label="备注（老板可见）" className="mt-3">
+          <input className="input-soft" placeholder="例如：体力优先刷XX本" value={boss.note} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, note: e.target.value }))} />
+        </Field>
+      </section>
+
+      {/* 每日体力 */}
+      <section className="paper-card px-6 py-6">
+        <h3 className="font-display text-lg" style={{ color: '#22405c' }}>每日体力登记</h3>
+        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>点格子即可补登 / 撤销，蓝色 = 已清</p>
+        <div className="mt-4">
+          <DayGrid boss={boss} editable onToggleDay={toggleDaily} />
+        </div>
+      </section>
+
+      {/* 周常 */}
+      {boss.tier >= 2 && (
+        <section className="paper-card px-6 py-6">
+          <h3 className="font-display text-lg" style={{ color: '#22405c' }}>每周周常登记</h3>
+          <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+            {Array.from({ length: weeks }, (_, i) => {
+              const done = boss.weekly.includes(i);
+              const range = weekRange(boss, i);
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => toggleWeek(i)}
+                  className={[
+                    'rounded-xl border px-3 py-2.5 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md',
+                    done ? 'border-transparent text-white' : 'border-[#d9e9f9] bg-white text-[#7e96ad]',
+                  ].join(' ')}
+                  style={done ? { background: 'linear-gradient(135deg,#45c6a5,#2fbf8f)' } : undefined}
+                >
+                  <p className="text-sm font-extrabold">第 {i + 1} 周</p>
+                  <p className={`mt-0.5 text-[10px] ${done ? 'text-white/85' : 'text-[#9db4c9]'}`}>
+                    {fmtCN(range.from)}~{fmtCN(range.to)}
+                  </p>
+                  <p className={`mt-1 text-[11px] font-bold ${done ? 'text-white' : ''}`}>{done ? '✓ 已清' : '点我打卡'}</p>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 活动 */}
+      {boss.tier >= 3 && (
+        <section className="paper-card px-6 py-6">
+          <h3 className="font-display text-lg" style={{ color: '#22405c' }}>版本活动登记</h3>
+          <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>点「编辑」可改活动名称和图片；不上传图片时老板端不会留空白框</p>
+          <div className="mt-4 space-y-3">
+            <EventCard event={boss.bigEvent} badge="版本大活动" editable onToggle={() => mutateBoss(boss.id, (b) => ({ ...b, bigEvent: { ...b.bigEvent, done: !b.bigEvent.done } }))} onEdit={() => setEventEdit({ kind: 'big' })} />
+            {boss.tier >= 4 && (
+              <div className="grid gap-3 md:grid-cols-3">
+                {boss.smallEvents.map((e, i) => (
+                  <EventCard
+                    key={i}
+                    event={e}
+                    badge={`小活动 ${i + 1}`}
+                    editable
+                    onToggle={() =>
+                      mutateBoss(boss.id, (b) => {
+                        const arr = [...b.smallEvents];
+                        arr[i] = { ...arr[i], done: !arr[i].done };
+                        return { ...b, smallEvents: arr };
+                      })
+                    }
+                    onEdit={() => setEventEdit({ kind: i })}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* 挑战 */}
+      {boss.tier >= 4 && (
+        <section className="paper-card px-6 py-6">
+          <h3 className="font-display text-lg" style={{ color: '#22405c' }}>周期挑战登记</h3>
+          <div className="mt-4 grid gap-3 sm:grid-cols-3">
+            <ToggleRow label="终焉矩阵" done={boss.challenges.matrix} onClick={() => toggleChallenge('matrix')} />
+            <ToggleRow label="冥歌海城" done={boss.challenges.sea} onClick={() => toggleChallenge('sea')} />
+            <ToggleRow label="逆境深塔" done={boss.challenges.tower} onClick={() => toggleChallenge('tower')} />
+          </div>
+        </section>
+      )}
+
+      {/* 可选任务 */}
+      <section className="paper-card px-6 py-6">
+        <h3 className="font-display text-lg" style={{ color: '#22405c' }}>其他小委托</h3>
+        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>开启后才会显示在老板的进度页上</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <OptionalRow
+            label="兑换前瞻兑换码"
+            enabled={boss.optionals.redeem.enabled}
+            done={boss.optionals.redeem.done}
+            onEnable={(v) => mutateBoss(boss.id, (b) => ({ ...b, optionals: { ...b.optionals, redeem: { ...b.optionals.redeem, enabled: v } } }))}
+            onToggle={() => mutateBoss(boss.id, (b) => ({ ...b, optionals: { ...b.optionals, redeem: { ...b.optionals.redeem, done: !b.optionals.redeem.done } } }))}
+          />
+          <OptionalRow
+            label="购买当前版本抽卡道具"
+            enabled={boss.optionals.gacha.enabled}
+            done={boss.optionals.gacha.done}
+            onEnable={(v) => mutateBoss(boss.id, (b) => ({ ...b, optionals: { ...b.optionals, gacha: { ...b.optionals.gacha, enabled: v } } }))}
+            onToggle={() => mutateBoss(boss.id, (b) => ({ ...b, optionals: { ...b.optionals, gacha: { ...b.optionals.gacha, done: !b.optionals.gacha.done } } }))}
+          />
+        </div>
+      </section>
+
+      {/* 活动编辑弹层 */}
+      {eventEdit && (
+        <EventEditor
+          boss={boss}
+          edit={eventEdit}
+          github={github}
+          onClose={() => setEventEdit(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
+  return (
+    <label className={`block ${className ?? ''}`}>
+      <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>{label}</span>
+      {children}
+    </label>
+  );
+}
+
+function ToggleRow({ label, done, onClick }: { label: string; done: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+      style={done ? { background: '#eef9f3', borderColor: '#bfe9d8' } : { background: '#fff', borderColor: '#d9e9f9' }}
+    >
+      {done ? <CheckCircle2 className="check-pop shrink-0 text-[#2fbf8f]" size={24} /> : <Circle className="shrink-0 text-[#b9d2e8]" size={24} />}
+      <span className={`flex-1 font-bold ${done ? 'text-[#1d9e74]' : 'text-[#2b3f54]'}`}>{label}</span>
+      <span className="text-xs font-semibold" style={{ color: '#8aa2b8' }}>{done ? '已完成' : '点我完成'}</span>
+    </button>
+  );
+}
+
+function OptionalRow({ label, enabled, done, onEnable, onToggle }: { label: string; enabled: boolean; done: boolean; onEnable: (v: boolean) => void; onToggle: () => void }) {
+  return (
+    <div className="rounded-2xl border px-4 py-3.5" style={{ background: enabled ? '#fff' : '#f6fafe', borderColor: '#d9e9f9' }}>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => onEnable(!enabled)}
+          className="relative h-6 w-11 shrink-0 rounded-full transition-colors duration-300"
+          style={{ background: enabled ? '#45a9ff' : '#cfdff0' }}
+          aria-label="启用开关"
+        >
+          <span
+            className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all duration-300"
+            style={{ left: enabled ? '22px' : '2px' }}
+          />
+        </button>
+        <span className="flex-1 font-bold" style={{ color: '#2b3f54' }}>{label}</span>
+        {enabled && (
+          <button type="button" onClick={onToggle} className="chip transition-transform hover:scale-105" style={done ? { background: '#d6f4e7', color: '#1d9e74' } : { background: '#fdf3e3', color: '#d18d1f' }}>
+            {done ? '✓ 已完成' : '点我完成'}
+          </button>
+        )}
+        {!enabled && <span className="chip" style={{ background: '#eef3f9', color: '#9db4c9' }}>未开启</span>}
+      </div>
+    </div>
+  );
+}
+
+/** 托管周期：常用 30 / 42 天，也可以自定义任意天数 */
+function CycleDaysPicker({ value, onChange }: { value: number; onChange: (days: number) => void }) {
+  const preset = value === 30 || value === 42;
+  const [custom, setCustom] = useState(!preset);
+  const [draft, setDraft] = useState(preset ? '' : String(value));
+
+  const pick = (v: string) => {
+    if (v === 'custom') {
+      setCustom(true);
+      setDraft(preset ? '' : String(value));
+    } else {
+      setCustom(false);
+      onChange(Number(v));
+    }
+  };
+
+  const commit = (raw: string) => {
+    setDraft(raw);
+    const n = Math.max(1, Math.min(365, Math.round(Number(raw) || 0)));
+    if (raw && n >= 1) onChange(n);
+  };
+
+  return (
+    <div className="flex gap-2">
+      <select className="input-soft" value={custom ? 'custom' : String(value)} onChange={(e) => pick(e.target.value)}>
+        <option value={30}>30 天</option>
+        <option value={42}>一个版本 · 42 天</option>
+        <option value="custom">自定义天数</option>
+      </select>
+      {custom && (
+        <span className="flex shrink-0 items-center gap-1.5">
+          <input
+            type="number"
+            min={1}
+            max={365}
+            className="input-soft !w-24 text-center font-bold"
+            placeholder="天数"
+            value={draft}
+            onChange={(e) => commit(e.target.value)}
+          />
+          <span className="text-xs font-bold" style={{ color: '#5b7a97' }}>天</span>
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ---------- 活动名称 / 图片编辑弹层 ---------- */
+function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind: 'big' | number }; github: ReturnType<typeof useStore>['github']; onClose: () => void }) {
+  const { mutateBoss, serverMode, adminKey } = useStore();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const isBig = edit.kind === 'big';
+  const idx = typeof edit.kind === 'number' ? edit.kind : -1;
+  const event: EventItem = isBig ? boss.bigEvent : boss.smallEvents[idx];
+
+  const apply = (patch: Partial<EventItem>) =>
+    mutateBoss(boss.id, (b) => {
+      if (isBig) return { ...b, bigEvent: { ...b.bigEvent, ...patch } };
+      const arr = [...b.smallEvents];
+      arr[idx] = { ...arr[idx], ...patch };
+      return { ...b, smallEvents: arr };
+    });
+
+  const pickImage = async (file: File) => {
+    setBusy(true);
+    setErr('');
+    try {
+      if (serverMode && adminKey) {
+        const url = await uploadServerImage(adminKey, file);
+        apply({ image: url });
+      } else if (github) {
+        const path = await uploadRemoteImage(github, file);
+        apply({ image: path });
+      } else {
+        const dataUrl = await downscaleToDataUrl(file, 960);
+        apply({ image: dataUrl });
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : '上传失败');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#22405c]/35 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div className="paper-card view-swap w-full max-w-md px-6 py-6" onClick={(e) => e.stopPropagation()}>
+        <h4 className="font-display text-lg" style={{ color: '#22405c' }}>
+          编辑{isBig ? '大活动' : `小活动 ${idx + 1}`}
+        </h4>
+        <Field label="活动名称" className="mt-4">
+          <input className="input-soft" value={event.name} placeholder="输入当前版本的活动名" onChange={(e) => apply({ name: e.target.value })} />
+        </Field>
+        <div className="mt-4">
+          <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>活动图片（可选，不传就不显示图片位）</span>
+          {event.image ? (
+            <div className="relative overflow-hidden rounded-2xl">
+              <img src={event.image} alt="活动图" className="h-40 w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => apply({ image: '' })}
+                className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-[#e05548] shadow transition hover:scale-105"
+              >
+                <Trash2 size={12} /> 移除图片
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => fileRef.current?.click()}
+              className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-sm font-bold transition-all duration-300 hover:border-[#45a9ff] hover:bg-[#f0f7ff]"
+              style={{ borderColor: '#cfe3f6', color: '#7e96ad' }}
+            >
+              <ImagePlus size={26} />
+              {busy ? '上传中…' : serverMode ? '点击上传图片（存入服务器）' : github ? '点击上传图片（存入仓库）' : '点击上传图片（仅本地）'}
+            </button>
+          )}
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && pickImage(e.target.files[0])} />
+          {err && <p className="mt-2 text-xs font-semibold" style={{ color: '#e05548' }}>{err}</p>}
+          {!github && !serverMode && (
+            <p className="mt-2 text-[11px]" style={{ color: '#9db4c9' }}>
+              未连接 GitHub，图片只保存在当前浏览器；连接后上传的图片会写入仓库，所有人可见。
+            </p>
+          )}
+          {serverMode && (
+            <p className="mt-2 text-[11px]" style={{ color: '#9db4c9' }}>
+              图片会存到服务器（数据卷里），上传后所有人可见。
+            </p>
+          )}
+        </div>
+        <div className="mt-6 flex justify-end gap-2">
+          <button type="button" className="btn-primary !px-5 !py-2 text-sm" onClick={onClose}>
+            完成
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** 本地模式下压缩图片，避免 localStorage 爆掉 */
+function downscaleToDataUrl(file: File, maxW: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(img.src);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
