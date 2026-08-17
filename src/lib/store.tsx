@@ -329,11 +329,11 @@ export function emptyBoss(id: string): Boss {
     note: '',
     daily: [],
     weekly: [],
-    bigEvent: { name: '', image: '', done: false },
+    bigEvent: { name: '版本大活动', image: '', done: false },
     smallEvents: [
-      { name: '', image: '', done: false },
-      { name: '', image: '', done: false },
-      { name: '', image: '', done: false },
+      { name: '版本小活动①', image: '', done: false },
+      { name: '版本小活动②', image: '', done: false },
+      { name: '版本小活动③', image: '', done: false },
     ],
     challenges: { matrix: false, sea: false, tower: false },
     optionals: {
@@ -343,13 +343,14 @@ export function emptyBoss(id: string): Boss {
   };
 }
 
-/** 手机号后四位生成口令；重复时往后补数字（0001 → 00011 → 00012……） */
-export function makePasscode(tail: string, existing: Boss[]): string {
-  const used = new Set(existing.map((b) => b.passcode));
-  if (!used.has(tail)) return tail;
-  for (let i = 1; i < 100; i++) {
-    const cand = `${tail}${i}`;
-    if (!used.has(cand)) return cand;
+/** 根据手机后四位生成口令；与其他老板重复时在末尾补 1、2、3… */
+export function makePasscode(tail: string, bosses: Boss[]): string {
+  const base = tail.replace(/\D/g, '').slice(-4) || '0000';
+  const taken = new Set(bosses.map((b) => b.passcode));
+  if (!taken.has(base)) return base;
+  for (let i = 1; i <= 9; i++) {
+    const cand = base + String(i);
+    if (!taken.has(cand)) return cand;
   }
-  return `${tail}${Date.now() % 100}`;
+  return base + String(Date.now() % 100);
 }

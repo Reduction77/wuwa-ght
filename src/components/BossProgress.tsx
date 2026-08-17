@@ -170,12 +170,10 @@ function SectionHead({ icon, title, desc }: { icon: React.ReactNode; title: stri
 }
 
 function MiniBar({ percent }: { percent: number }) {
+  const p = Math.min(percent, 100);
   return (
-    <div className="h-2.5 overflow-hidden rounded-full" style={{ background: '#e8f1fb' }}>
-      <div
-        className="h-full rounded-full transition-all duration-700"
-        style={{ width: `${Math.min(100, percent)}%`, background: 'linear-gradient(90deg,#45a9ff,#1e8bf0)' }}
-      />
+    <div className="h-2.5 w-full overflow-hidden rounded-full" style={{ background: '#e3effc' }}>
+      <div className="bar-fill h-full rounded-full" style={{ width: `${p}%`, background: 'linear-gradient(90deg,#45a9ff,#1e8bf0)' }} />
     </div>
   );
 }
@@ -183,18 +181,25 @@ function MiniBar({ percent }: { percent: number }) {
 function ChallengeRow({ label, done, icon }: { label: string; done: boolean; icon?: React.ReactNode }) {
   return (
     <div
-      className="flex items-center gap-3 rounded-2xl border px-4 py-3.5"
-      style={done ? { background: '#eef9f3', borderColor: '#bfe9d8' } : { background: '#fff', borderColor: '#d9e9f9' }}
+      className="flex items-center gap-3 rounded-2xl border px-4 py-3.5 transition-all duration-300"
+      style={
+        done
+          ? { background: '#eef9f3', borderColor: '#bfe9d8' }
+          : { background: '#fff', borderColor: '#d9e9f9' }
+      }
     >
       <span
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-        style={done ? { background: '#d6f4e7', color: '#1d9e74' } : { background: '#eef3f9', color: '#9db4c9' }}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
+        style={done ? { background: '#2fbf8f', color: '#fff' } : { background: '#eef5fc', color: '#8aa2b8' }}
       >
-        {icon ?? <Swords size={16} />}
+        {icon ?? <Swords size={18} />}
       </span>
       <span className={`flex-1 font-bold ${done ? 'text-[#1d9e74]' : 'text-[#2b3f54]'}`}>{label}</span>
-      <span className="chip" style={done ? { background: '#d6f4e7', color: '#1d9e74' } : { background: '#fdf3e3', color: '#d18d1f' }}>
-        {done ? '✓ 已完成' : '进行中'}
+      <span
+        className="chip"
+        style={done ? { background: '#d6f4e7', color: '#1d9e74' } : { background: '#fdf3e3', color: '#d18d1f' }}
+      >
+        {done ? '已完成' : '未完成'}
       </span>
     </div>
   );
