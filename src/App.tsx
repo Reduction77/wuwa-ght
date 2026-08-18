@@ -1,4 +1,4 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import Decor from '@/components/Decor';
 import { DataProvider } from '@/lib/store';
 import Landing from '@/pages/Landing';
@@ -10,10 +10,18 @@ const Admin = lazy(() => import('@/pages/admin'));
 type View = 'home' | 'boss' | 'admin';
 
 export default function App() {
-  const [view, setView] = useState<View>('home');
+  const readView = (): View => window.location.hash === '#admin' ? 'admin' : window.location.hash === '#boss' ? 'boss' : 'home';
+  const [view, setView] = useState<View>(readView);
+
+  useEffect(() => {
+    const sync = () => setView(readView());
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
 
   const go = (v: View) => {
     setView(v);
+    window.location.hash = v === 'home' ? '' : v;
     window.scrollTo({ top: 0 });
   };
 
@@ -38,4 +46,3 @@ function AdminFallback() {
     </div>
   );
 }
-

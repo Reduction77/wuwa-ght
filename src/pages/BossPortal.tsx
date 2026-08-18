@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
-import { useStore } from '@/lib/store';
-import { changePasscode } from '@/lib/server';
+import { useEffect, useMemo, useState } from 'react';
+import { normalizeSiteData, useStore } from '@/lib/store';
+import { changePasscode, loginBoss, logoutBoss, readBossSession } from '@/lib/server';
 import { siteConfig } from '@/siteConfig';
 import BossProgress from '@/components/BossProgress';
 import type { Boss } from '@/types';
@@ -13,17 +13,48 @@ interface Props {
 const SESSION_KEY = 'zzbb-boss-id';
 
 export default function BossPortal({ onBack }: Props) {
-  const { data, loading, reload } = useStore();
+  const { data, loading, reload, serverMode } = useStore();
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [bossId, setBossId] = useState<string | null>(() => sessionStorage.getItem(SESSION_KEY));
   const [shake, setShake] = useState(false);
+  const [serverBoss, setServerBoss] = useState<Boss | null>(null);
+  const [serverUpdatedAt, setServerUpdatedAt] = useState('');
+  const [busy, setBusy] = useState(false);
 
-  const boss = useMemo(() => data.bosses.find((b) => b.id === bossId) ?? null, [data, bossId]);
+  const boss = useMemo(() => serverMode ? serverBoss : data.bosses.find((b) => b.id === bossId) ?? null, [data, bossId, serverBoss, serverMode]);
 
-  const tryLogin = () => {
+  const acceptServerBoss = (raw: unknown, updatedAt: string) => {
+    const normalized = normalizeSiteData({ version: 1, updatedAt, bosses: [raw as Boss] });
+    setServerBoss(normalized.bosses[0] ?? null);
+    setServerUpdatedAt(updatedAt);
+  };
+
+  useEffect(() => {
+    if (!serverMode) return;
+    readBossSession()
+      .then((result) => acceptServerBoss(result.boss, result.updatedAt))
+      .catch(() => setServerBoss(null));
+  }, [serverMode]);
+
+  const tryLogin = async () => {
     const input = code.trim();
     if (!input) return;
+    if (serverMode) {
+      setBusy(true);
+      try {
+        const result = await loginBoss(input);
+        acceptServerBoss(result.boss, result.updatedAt);
+        setError('');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : '登录失败，请稍后再试');
+        setShake(true);
+        setTimeout(() => setShake(false), 500);
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const hit = data.bosses.find((b) => b.passcode === input);
     if (hit) {
       setBossId(hit.id);
@@ -36,6 +67,28 @@ export default function BossPortal({ onBack }: Props) {
     }
   };
 
+  const refreshBoss = async () => {
+    if (!serverMode) return reload();
+    setBusy(true);
+    try {
+      const result = await readBossSession();
+      acceptServerBoss(result.boss, result.updatedAt);
+    } catch {
+      setServerBoss(null);
+      setError('登录已过期，请重新输入口令');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const signOut = async () => {
+    if (serverMode) await logoutBoss();
+    sessionStorage.removeItem(SESSION_KEY);
+    setBossId(null);
+    setServerBoss(null);
+    setCode('');
+  };
+
   /* ---------- 已登录：展示进度 ---------- */
   if (boss) {
     return (
@@ -45,16 +98,12 @@ export default function BossPortal({ onBack }: Props) {
             <ArrowLeft size={14} /> 返回首页
           </button>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={() => reload()} className="btn-ghost !px-4 !py-2 text-xs" title="刷新最新进度">
-              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} /> 刷新
+            <button type="button" onClick={refreshBoss} className="btn-ghost !px-4 !py-2 text-xs" title="刷新最新进度">
+              <RefreshCw size={14} className={loading || busy ? 'animate-spin' : ''} /> 刷新
             </button>
             <button
               type="button"
-              onClick={() => {
-                sessionStorage.removeItem(SESSION_KEY);
-                setBossId(null);
-                setCode('');
-              }}
+              onClick={signOut}
               className="btn-ghost !px-4 !py-2 text-xs"
             >
               <LogOut size={14} /> 退出
@@ -63,7 +112,6 @@ export default function BossPortal({ onBack }: Props) {
         </header>
         <BossProgress boss={boss} />
         <ChangePasscodeCard
-          boss={boss}
           onChanged={() => {
             sessionStorage.removeItem(SESSION_KEY);
             setBossId(null);
@@ -71,7 +119,7 @@ export default function BossPortal({ onBack }: Props) {
           }}
         />
         <p className="mt-8 text-center text-xs" style={{ color: '#9db4c9' }}>
-          数据更新于 {new Date(data.updatedAt).toLocaleString('zh-CN')} · 有疑问随时<WeChatTip />戳我
+          数据更新于 {new Date(serverMode ? serverUpdatedAt : data.updatedAt).toLocaleString('zh-CN')} · 有疑问随时<WeChatTip />戳我
         </p>
       </div>
     );
@@ -105,12 +153,12 @@ export default function BossPortal({ onBack }: Props) {
             setCode(e.target.value);
             setError('');
           }}
-          onKeyDown={(e) => e.key === 'Enter' && tryLogin()}
+          onKeyDown={(e) => e.key === 'Enter' && !busy && void tryLogin()}
           autoFocus
         />
         {error && <p className="mt-2 text-sm font-semibold" style={{ color: '#e05548' }}>{error}</p>}
-        <button type="button" onClick={tryLogin} className="btn-primary mt-5 w-full">
-          查看我的托管进度
+        <button type="button" disabled={busy} onClick={() => void tryLogin()} className="btn-primary mt-5 w-full">
+          {busy ? '正在验证…' : '查看我的托管进度'}
         </button>
         <button type="button" onClick={onBack} className="mt-4 text-xs font-semibold" style={{ color: '#8aa2b8' }}>
           <ArrowLeft size={12} className="mr-1 inline" />返回首页
@@ -121,10 +169,9 @@ export default function BossPortal({ onBack }: Props) {
 }
 
 /** 修改口令卡片：服务器版直接改并同步到后台；纯静态版提示找托管小哥 */
-function ChangePasscodeCard({ boss, onChanged }: { boss: Boss; onChanged: () => void }) {
-  const { serverMode, reload } = useStore();
+function ChangePasscodeCard({ onChanged }: { onChanged: () => void }) {
+  const { serverMode } = useStore();
   const [open, setOpen] = useState(false);
-  const [oldCode, setOldCode] = useState('');
   const [newCode, setNewCode] = useState('');
   const [newCode2, setNewCode2] = useState('');
   const [busy, setBusy] = useState(false);
@@ -140,15 +187,11 @@ function ChangePasscodeCard({ boss, onChanged }: { boss: Boss; onChanged: () => 
       setMsg({ ok: false, text: '两次输入的新口令不一样' });
       return;
     }
-    if (n1 === oldCode.trim()) {
-      setMsg({ ok: false, text: '新口令和旧口令一样，换个新的吧' });
-      return;
-    }
     setBusy(true);
     setMsg(null);
     try {
-      await changePasscode(boss.id, oldCode.trim(), n1);
-      await reload();
+      await changePasscode(n1);
+      await logoutBoss();
       setMsg({ ok: true, text: '口令改好啦！3 秒后退出，请用新口令重新登录' });
       setTimeout(onChanged, 3000);
     } catch (e) {
@@ -188,13 +231,6 @@ function ChangePasscodeCard({ boss, onChanged }: { boss: Boss; onChanged: () => 
           <div className="mt-3 space-y-2.5">
             <input
               className="input-soft text-center font-bold tracking-[0.2em]"
-              placeholder="当前口令"
-              value={oldCode}
-              maxLength={16}
-              onChange={(e) => setOldCode(e.target.value)}
-            />
-            <input
-              className="input-soft text-center font-bold tracking-[0.2em]"
               placeholder="新口令（4~16 位）"
               value={newCode}
               maxLength={16}
@@ -220,7 +256,7 @@ function ChangePasscodeCard({ boss, onChanged }: { boss: Boss; onChanged: () => 
             </button>
             <button
               type="button"
-              disabled={busy || !oldCode.trim() || !newCode.trim()}
+              disabled={busy || !newCode.trim()}
               onClick={submit}
               className="btn-primary !px-5 !py-2 text-xs"
             >

@@ -1,12 +1,14 @@
 {
   "name": "wuwa-ght",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "check": "npm run lint && npm test && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {

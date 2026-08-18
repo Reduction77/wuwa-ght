@@ -1,0 +1,11 @@
+{
+  "name": "鸣潮托管记录站",
+  "short_name": "托管记录",
+  "start_url": "./#admin",
+  "display": "standalone",
+  "background_color": "#f4f9ff",
+  "theme_color": "#45a9ff",
+  "icons": [
+    { "src": "./favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

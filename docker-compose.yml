@@ -6,8 +6,8 @@ services:
     ports:
       - "130:130"
     environment:
-      # 后台管理密码，上线前务必改成你自己的
-      - ADMIN_PASSWORD=admin888
+      # 启动前在 .env 中设置 ADMIN_PASSWORD；未设置时拒绝启动
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?请先在 .env 中设置后台管理密码}
     volumes:
       # 托管数据（data.json + 上传的活动图片）持久化到这个卷
       - wuwa-data:/data

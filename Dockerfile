@@ -28,8 +28,13 @@ ENV NODE_ENV=production \
 COPY server.js ./
 COPY --from=build /app/dist ./dist
 
+RUN mkdir -p /data && chown -R node:node /app /data
+
 # 数据（data.json + 上传的图片）放这里，挂载卷即可持久化
 VOLUME /data
 
-EXPOSE 80
+EXPOSE 130
+USER node
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:130/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["node", "server.js"]

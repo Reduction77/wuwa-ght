@@ -1,5 +1,6 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import type { Boss, SiteData } from '@/types';
+import { tierServices, type AuditEntry, type Boss, type SiteData } from '@/types';
 import initialJson from '@/data/initial.json';
 import {
   type GithubConfig,
@@ -11,11 +12,13 @@ import {
 import {
   detectServer,
   loadAdminKey,
+  readServerPublic,
   readServerData,
   saveAdminKey,
   writeServerData,
 } from '@/lib/server';
 import { addDays, cycleEndDate, todayStr } from '@/lib/dates';
+import { renewBossForDate, resetBossVersionProgress } from '@/lib/boss-rules';
 
 const LOCAL_KEY = 'zzbb-local-data';
 
@@ -34,10 +37,12 @@ interface Store {
   adminKey: string | null;
   /** 当前数据来源提示 */
   source: 'remote' | 'local' | 'bundled';
+  online: boolean;
   setGithub: (c: GithubConfig | null) => void;
   setAdminKey: (key: string | null) => void;
   updateBoss: (id: string, patch: Partial<Boss>) => void;
-  mutateBoss: (id: string, fn: (b: Boss) => Boss) => void;
+  mutateBoss: (id: string, fn: (b: Boss) => Boss, audit?: { action: string; detail?: string }) => void;
+  mutateBosses: (ids: string[], fn: (b: Boss) => Boss, audit?: { action: string; detail?: string }) => void;
   addBoss: (b: Boss) => void;
   removeBoss: (id: string) => void;
   save: () => Promise<void>;
@@ -45,18 +50,21 @@ interface Store {
   /** 同版本续期：从当前游戏日开始新的日常周期，只清空日常记录 */
   renewBoss: (id: string) => void;
   /** 版本更新：重置进行中老板的版本任务，保留日常、周常、海墟、深塔、矩阵 */
-  resetVersionProgress: () => void;
+  resetVersionProgress: (version?: { name: string; expectedDays?: number }) => void;
+  archiveBoss: (id: string, archived: boolean) => void;
+  undo: () => void;
+  canUndo: boolean;
   /** 一键切换接单状态（首页顶部徽章） */
   setAccepting: (on: boolean) => void;
   /** 整包替换数据（从本地备份恢复时用） */
   importData: (data: SiteData) => void;
   /** 同步活动名称/图片到所有老板（同一版本活动全服一样；完成状态仍各自独立） */
-  syncEventMeta: (kind: 'big' | number, patch: { name?: string; image?: string }) => void;
+  syncEventMeta: (kind: 'big' | number, patch: Partial<Pick<Boss['bigEvent'], 'name' | 'image' | 'openDate' | 'deadline'>>) => void;
 }
 
 const Ctx = createContext<Store | null>(null);
 
-function normalize(data: SiteData): SiteData {
+export function normalizeSiteData(data: SiteData): SiteData {
   type PB = Partial<Boss> & { bigEvent?: Partial<Boss['bigEvent']> };
   // 兼容旧格式：challenges 的某项可能是 boolean（旧），也可能是 {enabled,done}（新）
   const tog = (v: unknown, defaultEnabled: boolean): Boss['optionals']['redeem'] => {
@@ -67,14 +75,16 @@ function normalize(data: SiteData): SiteData {
     return { enabled: defaultEnabled, done: v === true };
   };
   return {
-    version: data.version ?? 1,
+    version: Math.max(data.version ?? 1, 2),
     updatedAt: data.updatedAt ?? new Date().toISOString(),
     accepting: {
       on: data.accepting?.on ?? true,
       text: data.accepting?.text ?? '鸣潮 · 托管进行中',
     },
+    gameVersion: data.gameVersion ?? { name: '当前版本', startedAt: '', updatedAt: '' },
     bosses: ((data.bosses ?? []) as PB[]).map((b) => {
       const ch = (b.challenges ?? {}) as Record<string, unknown>;
+      const tier = b.tier ?? 4;
       const startDate = b.startDate ?? todayStr();
       const start = new Date(startDate + 'T00:00:00');
       const startDow = (start.getDay() + 6) % 7;
@@ -94,14 +104,25 @@ function normalize(data: SiteData): SiteData {
         name: b.name ?? '',
         account: b.account ?? '',
         passcode: b.passcode ?? '0000',
-        tier: b.tier ?? 4,
+        tier,
         cycleDays: b.cycleDays ?? 30,
         startDate,
         note: b.note ?? '',
+        internalNote: b.internalNote ?? '',
+        tags: Array.isArray(b.tags) ? b.tags.filter((tag) => typeof tag === 'string') : [],
+        archived: b.archived ?? false,
+        renewalState: b.renewalState ?? 'none',
+        issue: {
+          kind: b.issue?.kind ?? 'none',
+          message: b.issue?.message ?? '',
+          updatedAt: b.issue?.updatedAt ?? '',
+        },
+        excludedDays: Array.isArray(b.excludedDays) ? b.excludedDays.filter((item) => item && /^\d{4}-\d{2}-\d{2}$/.test(item.date)) : [],
+        services: { ...tierServices(tier), ...(b.services ?? {}) },
         daily: b.daily ?? [],
         weekly: [...new Set(weekly)].sort(),
-        bigEvent: { name: '版本大活动', image: '', done: false, ...(b.bigEvent ?? {}) },
-        smallEvents: ((b.smallEvents ?? []) as Array<Partial<Boss['smallEvents'][number]>>).map((e) => ({ name: '', image: '', done: false, ...e })),
+        bigEvent: { name: '版本大活动', image: '', done: false, openDate: '', deadline: '', ...(b.bigEvent ?? {}) },
+        smallEvents: ((b.smallEvents ?? []) as Array<Partial<Boss['smallEvents'][number]>>).map((e) => ({ name: '', image: '', done: false, openDate: '', deadline: '', ...e })),
         challenges: {
           matrix: tog(ch.matrix, full),
           sea: tog(ch.sea, full),
@@ -112,6 +133,15 @@ function normalize(data: SiteData): SiteData {
           redeem: tog(b.optionals?.redeem, false),
           gacha: tog(b.optionals?.gacha, false),
         },
+        extraTasks: (b.extraTasks ?? []).map((task) => ({
+          id: task.id || `task-${Math.random().toString(36).slice(2, 9)}`,
+          name: task.name ?? '',
+          done: task.done ?? false,
+          visible: task.visible ?? true,
+          createdAt: task.createdAt ?? new Date().toISOString(),
+          ...(task.doneAt ? { doneAt: task.doneAt } : {}),
+        })),
+        cycleHistory: Array.isArray(b.cycleHistory) ? b.cycleHistory : [],
         show: {
           daily: b.show?.daily ?? true,
           weekly: b.show?.weekly ?? true,
@@ -119,11 +149,12 @@ function normalize(data: SiteData): SiteData {
         },
       };
     }),
+    audit: Array.isArray(data.audit) ? data.audit.slice(-300) : [],
   };
 }
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<SiteData>(normalize(initialJson as unknown as SiteData));
+  const [data, setData] = useState<SiteData>(normalizeSiteData(initialJson as unknown as SiteData));
   const [loading, setLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -132,23 +163,41 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [serverMode, setServerMode] = useState(false);
   const [adminKey, setAdminKeyState] = useState<string | null>(() => loadAdminKey());
   const [source, setSource] = useState<'remote' | 'local' | 'bundled'>('bundled');
+  const [online, setOnline] = useState(() => navigator.onLine);
   const dataRef = useRef(data);
-  dataRef.current = data;
+  const undoRef = useRef<SiteData | null>(null);
+  const wasOfflineRef = useRef(!navigator.onLine);
+  const [canUndo, setCanUndo] = useState(false);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
 
   const reload = useCallback(async () => {
     setLoading(true);
     // 服务器版：数据直接在服务器上
     if (await detectServer()) {
+      setServerMode(true);
       try {
-        const content = await readServerData();
-        setData(normalize(JSON.parse(content)));
-        setServerMode(true);
+        const key = loadAdminKey();
+        const content = key ? await readServerData(key) : await readServerPublic();
+        setData(normalizeSiteData(JSON.parse(content)));
         setSource('remote');
         setDirty(false);
         setLoading(false);
         return;
       } catch {
-        // 读取失败则退回本地
+        // 管理凭据失效时清理它，但服务器模式保持不变且绝不回退到公开 data.json。
+        saveAdminKey(null);
+        setAdminKeyState(null);
+        try {
+          setData(normalizeSiteData(JSON.parse(await readServerPublic())));
+          setSource('remote');
+        } catch {
+          setSource('bundled');
+        }
+        setDirty(false);
+        setLoading(false);
+        return;
       }
     }
     setServerMode(false);
@@ -156,7 +205,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (gh) {
       try {
         const { content } = await readRemoteData(gh);
-        setData(normalize(JSON.parse(content)));
+        setData(normalizeSiteData(JSON.parse(content)));
         setSource('remote');
         setDirty(false);
         setLoading(false);
@@ -172,10 +221,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         // 本地未保存的修改优先
         const local = localStorage.getItem(LOCAL_KEY);
         if (local && dirty) {
-          setData(normalize(JSON.parse(local)));
+          setData(normalizeSiteData(JSON.parse(local)));
           setSource('local');
         } else {
-          setData(normalize(json));
+          setData(normalizeSiteData(json));
           setSource('bundled');
         }
       }
@@ -186,12 +235,34 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [dirty]);
 
   useEffect(() => {
-    reload();
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    return () => {
+      window.removeEventListener('online', up);
+      window.removeEventListener('offline', down);
+    };
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void reload(), 0);
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const touch = useCallback((next: SiteData) => {
+  const touch = useCallback((next: SiteData, audit?: Omit<AuditEntry, 'id' | 'at'>) => {
+    undoRef.current = dataRef.current;
+    setCanUndo(true);
+    if (audit) {
+      next.audit = [...(next.audit ?? []), {
+        id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        at: new Date().toISOString(),
+        ...audit,
+      }].slice(-300);
+    }
     next.updatedAt = new Date().toISOString();
+    dataRef.current = next;
     setData({ ...next });
     setDirty(true);
     setSaveState('idle');
@@ -202,11 +273,28 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const undo = useCallback(() => {
+    const previous = undoRef.current;
+    if (!previous) return;
+    undoRef.current = null;
+    setCanUndo(false);
+    previous.updatedAt = new Date().toISOString();
+    dataRef.current = previous;
+    setData({ ...previous });
+    setDirty(true);
+    setSaveState('idle');
+    try {
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(previous));
+    } catch {
+      // 浏览器空间不足时仍保留内存中的撤销结果。
+    }
+  }, []);
+
   const mutateBoss = useCallback(
-    (id: string, fn: (b: Boss) => Boss) => {
+    (id: string, fn: (b: Boss) => Boss, audit?: { action: string; detail?: string }) => {
       const cur = dataRef.current;
       const bosses = cur.bosses.map((b) => (b.id === id ? fn({ ...b }) : b));
-      touch({ ...cur, bosses });
+      touch({ ...cur, bosses }, audit ? { ...audit, bossId: id } : undefined);
     },
     [touch]
   );
@@ -218,10 +306,19 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [mutateBoss]
   );
 
+  const mutateBosses = useCallback(
+    (ids: string[], fn: (b: Boss) => Boss, audit?: { action: string; detail?: string }) => {
+      const selected = new Set(ids);
+      const cur = dataRef.current;
+      touch({ ...cur, bosses: cur.bosses.map((b) => selected.has(b.id) ? fn({ ...b }) : b) }, audit ? { ...audit, detail: `${audit.detail ?? ''}${audit.detail ? ' · ' : ''}${ids.length} 位` } : undefined);
+    },
+    [touch]
+  );
+
   const addBoss = useCallback(
     (b: Boss) => {
       const cur = dataRef.current;
-      touch({ ...cur, bosses: [...cur.bosses, b] });
+      touch({ ...cur, bosses: [...cur.bosses, b] }, { action: '新增老板', bossId: b.id, detail: b.name });
     },
     [touch]
   );
@@ -229,7 +326,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const removeBoss = useCallback(
     (id: string) => {
       const cur = dataRef.current;
-      touch({ ...cur, bosses: cur.bosses.filter((b) => b.id !== id) });
+      touch({ ...cur, bosses: cur.bosses.filter((b) => b.id !== id) }, { action: '永久删除老板', bossId: id });
     },
     [touch]
   );
@@ -237,36 +334,39 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const renewBoss = useCallback(
     (id: string) => {
       const today = todayStr();
-      mutateBoss(id, (b) => ({
-        ...b,
-        startDate: today,
-        daily: [],
-      }));
+      const cur = dataRef.current;
+      const bosses = cur.bosses.map((b) => b.id === id ? renewBossForDate(b, today) : b);
+      touch({ ...cur, bosses }, { action: '同版本续期', bossId: id, detail: `${today} 起` });
     },
-    [mutateBoss]
+    [touch]
   );
 
-  const resetVersionProgress = useCallback(() => {
+  const resetVersionProgress = useCallback((version?: { name: string; expectedDays?: number }) => {
     const cur = dataRef.current;
     const today = todayStr();
     const bosses = cur.bosses.map((b) => {
       // 已到期的老板不参与新版本，避免改动其留存数据。
-      if (cycleEndDate(b) < today) return b;
-      return {
-        ...b,
-        bigEvent: { ...b.bigEvent, done: false },
-        smallEvents: b.smallEvents.map((e) => ({ ...e, done: false })),
-        challenges: {
-          ...b.challenges,
-          holo: { ...b.challenges.holo, done: false },
-        },
-        optionals: {
-          redeem: { ...b.optionals.redeem, done: false },
-          gacha: { ...b.optionals.gacha, done: false },
-        },
-      };
+      if (b.archived || cycleEndDate(b) < today) return b;
+      return resetBossVersionProgress(b);
     });
-    touch({ ...cur, bosses });
+    touch({
+      ...cur,
+      gameVersion: {
+        name: version?.name.trim() || cur.gameVersion?.name || '当前版本',
+        startedAt: today,
+        ...(version?.expectedDays ? { expectedDays: version.expectedDays } : {}),
+        updatedAt: new Date().toISOString(),
+      },
+      bosses,
+    }, { action: '游戏版本更新', detail: `${version?.name || '未命名版本'} · 重置 ${bosses.filter((b, i) => b !== cur.bosses[i]).length} 位老板` });
+  }, [touch]);
+
+  const archiveBoss = useCallback((id: string, archived: boolean) => {
+    const cur = dataRef.current;
+    const boss = cur.bosses.find((item) => item.id === id);
+    touch({ ...cur, bosses: cur.bosses.map((item) => item.id === id ? { ...item, archived } : item) }, {
+      action: archived ? '归档老板' : '恢复老板', bossId: id, detail: boss?.name,
+    });
   }, [touch]);
 
   const setGithub = useCallback((c: GithubConfig | null) => {
@@ -290,13 +390,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const importData = useCallback(
     (incoming: SiteData) => {
-      touch(normalize(incoming));
+      touch(normalizeSiteData(incoming));
     },
     [touch]
   );
 
   const syncEventMeta = useCallback(
-    (kind: 'big' | number, patch: { name?: string; image?: string }) => {
+    (kind: 'big' | number, patch: Partial<Pick<Boss['bigEvent'], 'name' | 'image' | 'openDate' | 'deadline'>>) => {
       const cur = dataRef.current;
       const bosses = cur.bosses.map((b) => {
         if (kind === 'big') return { ...b, bigEvent: { ...b.bigEvent, ...patch } };
@@ -315,7 +415,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem(LOCAL_KEY, JSON.stringify(dataRef.current));
       if (serverMode && adminKey) {
-        await writeServerData(adminKey, JSON.stringify(dataRef.current, null, 1));
+        const saved = normalizeSiteData(JSON.parse(await writeServerData(adminKey, JSON.stringify(dataRef.current, null, 1))));
+        dataRef.current = saved;
+        setData(saved);
         setSource('remote');
       } else if (github) {
         await writeRemoteData(
@@ -334,6 +436,33 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   }, [github, serverMode, adminKey]);
 
+  // 服务器版自动保存；GitHub Pages 仍保留手动保存，避免每次输入都产生提交记录。
+  useEffect(() => {
+    if (!dirty || !online || !serverMode || !adminKey || saveState === 'saving' || saveState === 'error') return;
+    const timer = window.setTimeout(() => void save(), 1200);
+    return () => window.clearTimeout(timer);
+  }, [data.updatedAt, dirty, online, serverMode, adminKey, saveState, save]);
+
+  useEffect(() => {
+    if (!online) {
+      wasOfflineRef.current = true;
+      return;
+    }
+    if (wasOfflineRef.current && dirty && serverMode && adminKey && saveState === 'error') {
+      setSaveState('idle');
+    }
+    wasOfflineRef.current = false;
+  }, [online, dirty, serverMode, adminKey, saveState]);
+
+  useEffect(() => {
+    const warn = (event: BeforeUnloadEvent) => {
+      if (!dirty) return;
+      event.preventDefault();
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [dirty]);
+
   const value = useMemo<Store>(
     () => ({
       data,
@@ -345,12 +474,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       serverMode,
       adminKey,
       source,
+      online,
       setGithub,
       setAdminKey,
       updateBoss,
       mutateBoss,
+      mutateBosses,
       renewBoss,
       resetVersionProgress,
+      archiveBoss,
+      undo,
+      canUndo,
       setAccepting,
       importData,
       syncEventMeta,
@@ -359,7 +493,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       save,
       reload,
     }),
-    [data, loading, dirty, saveState, saveError, github, serverMode, adminKey, source, setGithub, setAdminKey, updateBoss, mutateBoss, renewBoss, resetVersionProgress, setAccepting, importData, syncEventMeta, addBoss, removeBoss, save, reload]
+    [data, loading, dirty, saveState, saveError, github, serverMode, adminKey, source, online, setGithub, setAdminKey, updateBoss, mutateBoss, mutateBosses, renewBoss, resetVersionProgress, archiveBoss, undo, canUndo, setAccepting, importData, syncEventMeta, addBoss, removeBoss, save, reload]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -381,6 +515,13 @@ export function emptyBoss(id: string): Boss {
     cycleDays: 30,
     startDate: todayStr(),
     note: '',
+    internalNote: '',
+    tags: [],
+    archived: false,
+    renewalState: 'none',
+    issue: { kind: 'none', message: '', updatedAt: '' },
+    excludedDays: [],
+    services: tierServices(4),
     daily: [],
     weekly: [],
     bigEvent: { name: '版本大活动', image: '', done: false },
@@ -399,6 +540,8 @@ export function emptyBoss(id: string): Boss {
       redeem: { enabled: false, done: false },
       gacha: { enabled: false, done: false },
     },
+    extraTasks: [],
+    cycleHistory: [],
     show: { daily: true, weekly: true, bigEvent: true },
   };
 }

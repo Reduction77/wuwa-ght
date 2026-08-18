@@ -31,6 +31,11 @@ html {
   scroll-behavior: smooth;
 }
 
+:focus-visible {
+  outline: 3px solid rgba(30, 139, 240, 0.45);
+  outline-offset: 2px;
+}
+
 body {
   font-family: 'Baloo 2', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC', sans-serif;
   background-color: #f3f9ff;
@@ -176,3 +181,12 @@ select.input-soft {
 }
 select.input-soft:hover { border-color: #9dcdf3; }
 select.input-soft:focus { background-color: #fff; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

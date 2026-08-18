@@ -1,5 +1,5 @@
 import type { Boss } from '@/types';
-import { addDays, fmtCN, todayStr } from '@/lib/dates';
+import { cycleDates, fmtCN, todayStr } from '@/lib/dates';
 import { Check } from 'lucide-react';
 
 interface Props {
@@ -11,7 +11,7 @@ interface Props {
 /** 托管周期打卡格：每日体力 */
 export default function DayGrid({ boss, editable, onToggleDay }: Props) {
   const today = todayStr();
-  const cells = Array.from({ length: boss.cycleDays }, (_, i) => addDays(boss.startDate, i));
+  const cells = cycleDates(boss);
 
   return (
     <div className="grid gap-1.5" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(44px, 1fr))' }}>

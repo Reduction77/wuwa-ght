@@ -4,7 +4,7 @@ import { bossStats, currentWeekIndex, cycleDayIndex, cycleEndDate, cycleWeeks, f
 import DayGrid from '@/components/DayGrid';
 import EventCard from '@/components/EventCard';
 import ProgressRing from '@/components/ProgressRing';
-import { BatteryCharging, CalendarCheck2, Gift, Sparkles, Swords, Ticket } from 'lucide-react';
+import { AlertTriangle, BatteryCharging, CalendarCheck2, Gift, History, Sparkles, Swords, Ticket } from 'lucide-react';
 
 interface Props {
   boss: Boss;
@@ -38,11 +38,22 @@ export default function BossProgress({ boss }: Props) {
             {ended && (
               <span className="chip" style={{ background: '#efe9fb', color: '#7c5cc9' }}>本周期已结束</span>
             )}
+            {!ended && !notStarted && boss.services.daily && (
+              <span className="chip" style={boss.daily.includes(todayStr()) ? { background: '#d6f4e7', color: '#1d9e74' } : { background: '#fdf3e3', color: '#d18d1f' }}>
+                {boss.daily.includes(todayStr()) ? '今日托管已完成 ✓' : '今日托管尚未登记'}
+              </span>
+            )}
+            {boss.excludedDays.length > 0 && <span className="chip" style={{ background: '#f1ecfb', color: '#7c5cc9' }}>已暂停顺延 {boss.excludedDays.length} 天</span>}
           </div>
           <p className="mt-2 text-sm" style={{ color: '#6b86a1' }}>
             托管时间：{fmtCN(boss.startDate)} ~ {fmtCN(cycleEndDate(boss))}
             {ended ? '' : notStarted ? ' · 尚未开始' : ` · 今天是第 ${dayNow} 天`}
           </p>
+          {!notStarted && !ended && boss.services.daily && (
+            <p className="mt-1 text-xs font-bold" style={{ color: stats.dailyDone >= stats.dailyElapsed ? '#1d9e74' : '#d18d1f' }}>
+              截至今天应完成 {stats.dailyElapsed} 天，实际完成 {stats.dailyDone} 天
+            </p>
+          )}
           {boss.note && (
             <p className="mt-2 rounded-xl px-3 py-2 text-sm" style={{ background: '#f0f7ff', color: '#5b7a97' }}>
               备注：{boss.note}
@@ -51,8 +62,18 @@ export default function BossProgress({ boss }: Props) {
         </div>
       </div>
 
+      {boss.issue.kind !== 'none' && (
+        <div className="paper-card flex items-start gap-3 border border-[#ffd9a0] bg-[#fffaf2] px-5 py-4">
+          <AlertTriangle size={20} className="mt-0.5 shrink-0 text-[#d18d1f]" />
+          <div>
+            <p className="font-bold text-[#8a5a10]">当前托管遇到情况</p>
+            <p className="mt-1 text-sm text-[#9a783f]">{boss.issue.message || '托管小哥正在处理中，有进展会及时更新。'}</p>
+          </div>
+        </div>
+      )}
+
       {/* 每日体力（开了才显示） */}
-      {boss.show.daily && (
+      {boss.services.daily && boss.show.daily && (
         <section className="paper-card rise-in rise-in-2 px-6 py-6">
           <SectionHead
             icon={<BatteryCharging size={20} />}
@@ -67,7 +88,7 @@ export default function BossProgress({ boss }: Props) {
       )}
 
       {/* 每周周常（套餐含周常 且 开了才显示） */}
-      {boss.tier >= 2 && boss.show.weekly && (
+      {boss.services.weekly && boss.show.weekly && (
         <section className="paper-card rise-in rise-in-3 px-6 py-6">
           <SectionHead
             icon={<CalendarCheck2 size={20} />}
@@ -107,16 +128,16 @@ export default function BossProgress({ boss }: Props) {
       )}
 
       {/* 版本活动（套餐含大活动 且 开了才显示） */}
-      {boss.tier >= 3 && boss.show.bigEvent && (
+      {boss.services.bigEvent && boss.show.bigEvent && (
         <section className="paper-card rise-in rise-in-3 px-6 py-6">
           <SectionHead
             icon={<Sparkles size={20} />}
             title="版本活动"
-            desc={boss.tier === 4 ? '每个托管周期 1 个大活动 + 3 个小活动' : '每个托管周期 1 个大活动'}
+            desc={boss.services.smallEvents ? '当前版本 1 个大活动 + 3 个小活动' : '当前版本大活动'}
           />
           <div className="mt-4 space-y-3">
             <EventCard event={boss.bigEvent} badge="版本大活动" />
-            {boss.tier === 4 && (
+            {boss.services.smallEvents && (
               <div className="grid gap-3 md:grid-cols-3">
                 {boss.smallEvents.map((e, i) => (
                   <EventCard key={i} event={e} badge={`小活动 ${i + 1}`} />
@@ -151,6 +172,31 @@ export default function BossProgress({ boss }: Props) {
             {boss.optionals.gacha.enabled && (
               <ChallengeRow label="购买当前版本抽卡道具" done={boss.optionals.gacha.done} icon={<Gift size={18} />} />
             )}
+          </div>
+        </section>
+      )}
+
+      {boss.extraTasks.some((task) => task.visible) && (
+        <section className="paper-card rise-in rise-in-5 px-6 py-6">
+          <SectionHead icon={<Gift size={20} />} title="临时加项" desc="本次托管额外约定的任务" />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {boss.extraTasks.filter((task) => task.visible).map((task) => (
+              <ChallengeRow key={task.id} label={task.name} done={task.done} icon={<Gift size={18} />} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {boss.cycleHistory.length > 0 && (
+        <section className="paper-card px-6 py-6">
+          <SectionHead icon={<History size={20} />} title="历史托管周期" desc={`共 ${boss.cycleHistory.length} 个已归档周期`} />
+          <div className="mt-4 space-y-2">
+            {[...boss.cycleHistory].reverse().map((cycle) => (
+              <details key={cycle.id} className="rounded-xl border border-[#d9e9f9] bg-white px-4 py-3">
+                <summary className="cursor-pointer text-sm font-bold text-[#2b3f54]">{fmtCN(cycle.startDate)} 起 · {cycle.cycleDays} 天</summary>
+                <p className="mt-2 text-xs text-[#7e96ad]">日常完成 {cycle.daily.length}/{cycle.cycleDays} 天 · 周常完成 {cycle.weekly.length} 周</p>
+              </details>
+            ))}
           </div>
         </section>
       )}

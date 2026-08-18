@@ -15,7 +15,7 @@ const GH_KEY = 'zzbb-github-config';
 
 export function loadGithubConfig(): GithubConfig | null {
   try {
-    const raw = localStorage.getItem(GH_KEY);
+    const raw = sessionStorage.getItem(GH_KEY);
     if (!raw) return null;
     const c = JSON.parse(raw);
     if (c && c.token && c.owner && c.repo) return { branch: 'main', ...c };
@@ -26,8 +26,8 @@ export function loadGithubConfig(): GithubConfig | null {
 }
 
 export function saveGithubConfig(c: GithubConfig | null) {
-  if (c) localStorage.setItem(GH_KEY, JSON.stringify(c));
-  else localStorage.removeItem(GH_KEY);
+  if (c) sessionStorage.setItem(GH_KEY, JSON.stringify(c));
+  else sessionStorage.removeItem(GH_KEY);
 }
 
 function apiBase(c: GithubConfig) {

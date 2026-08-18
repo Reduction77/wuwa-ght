@@ -5,12 +5,12 @@
 
 const KEY_STORAGE = 'zzbb-admin-key';
 
-/** 探测当前站点是不是服务器版（有 /api/data 即视为服务器版） */
+/** 探测当前站点是不是服务器版 */
 export async function detectServer(): Promise<boolean> {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 4000);
-    const res = await fetch('/api/data?t=' + Date.now(), { signal: ctrl.signal, cache: 'no-store' });
+    const res = await fetch('/api/mode?t=' + Date.now(), { signal: ctrl.signal, cache: 'no-store' });
     clearTimeout(timer);
     const type = res.headers.get('content-type') || '';
     return res.ok && type.includes('application/json');
@@ -19,9 +19,18 @@ export async function detectServer(): Promise<boolean> {
   }
 }
 
-export async function readServerData(): Promise<string> {
-  const res = await fetch('/api/data?t=' + Date.now(), { cache: 'no-store' });
+export async function readServerData(key: string): Promise<string> {
+  const res = await fetch('/api/data?t=' + Date.now(), {
+    cache: 'no-store',
+    headers: { Authorization: `Bearer ${key}` },
+  });
   if (!res.ok) throw new Error('读取服务器数据失败');
+  return res.text();
+}
+
+export async function readServerPublic(): Promise<string> {
+  const res = await fetch('/api/public?t=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error('读取站点信息失败');
   return res.text();
 }
 
@@ -34,7 +43,7 @@ export async function checkAdminKey(key: string): Promise<boolean> {
   }
 }
 
-export async function writeServerData(key: string, json: string): Promise<void> {
+export async function writeServerData(key: string, json: string): Promise<string> {
   const res = await fetch('/api/data', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
@@ -45,14 +54,39 @@ export async function writeServerData(key: string, json: string): Promise<void> 
     const err = await res.json().catch(() => null);
     throw new Error(err?.error || '保存到服务器失败');
   }
+  return res.text();
 }
 
-/** 老板自助改口令：凭旧口令验证，只改自己的，不需要管理密码 */
-export async function changePasscode(id: string, oldPasscode: string, newPasscode: string): Promise<void> {
+export async function loginBoss(passcode: string): Promise<{ boss: unknown; updatedAt: string }> {
+  const res = await fetch('/api/boss/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'same-origin',
+    body: JSON.stringify({ passcode }),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.error || '登录失败');
+  return json;
+}
+
+export async function readBossSession(): Promise<{ boss: unknown; updatedAt: string }> {
+  const res = await fetch('/api/boss/me?t=' + Date.now(), { cache: 'no-store', credentials: 'same-origin' });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.error || '登录已过期');
+  return json;
+}
+
+export async function logoutBoss(): Promise<void> {
+  await fetch('/api/boss/session', { method: 'DELETE', credentials: 'same-origin' });
+}
+
+/** 老板自助改口令：使用当前 HttpOnly 会话，只改自己的数据 */
+export async function changePasscode(newPasscode: string): Promise<void> {
   const res = await fetch('/api/passcode', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ id, oldPasscode, newPasscode }),
+    credentials: 'same-origin',
+    body: JSON.stringify({ newPasscode }),
   });
   const json = await res.json().catch(() => null);
   if (!res.ok) throw new Error(json?.error || '改口令失败');
@@ -70,6 +104,13 @@ export async function uploadServerImage(key: string, file: File): Promise<string
   const json = await res.json().catch(() => null);
   if (!res.ok || !json?.url) throw new Error(json?.error || '图片上传失败');
   return json.url as string;
+}
+
+export async function cleanupServerImages(key: string): Promise<number> {
+  const res = await fetch('/api/cleanup-uploads', { method: 'POST', headers: { Authorization: `Bearer ${key}` } });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.error || '清理图片失败');
+  return Number(json?.removed || 0);
 }
 
 export function loadAdminKey(): string | null {

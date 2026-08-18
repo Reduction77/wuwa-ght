@@ -36,14 +36,25 @@ export function fmtCN(dateStr: string): string {
 
 /** 周期第几天（1 起）；未到开始日返回 0，超过周期返回 cycleDays */
 export function cycleDayIndex(boss: Boss, date = todayStr()): number {
-  const start = new Date(boss.startDate + 'T00:00:00').getTime();
-  const cur = new Date(date + 'T00:00:00').getTime();
-  const diff = Math.round((cur - start) / 86400000);
-  return Math.min(Math.max(diff + 1, 0), boss.cycleDays);
+  if (date < boss.startDate) return 0;
+  return Math.min(cycleDates(boss).filter((item) => item <= date).length, boss.cycleDays);
 }
 
 export function cycleEndDate(boss: Boss): string {
-  return addDays(boss.startDate, boss.cycleDays - 1);
+  return cycleDates(boss).at(-1) ?? boss.startDate;
+}
+
+/** 实际需要服务的日期；暂停日跳过，并自动把周期向后顺延。 */
+export function cycleDates(boss: Boss): string[] {
+  const excluded = new Set((boss.excludedDays ?? []).map((item) => item.date));
+  const result: string[] = [];
+  let offset = 0;
+  while (result.length < boss.cycleDays && offset < boss.cycleDays + excluded.size + 366) {
+    const date = addDays(boss.startDate, offset);
+    if (!excluded.has(date)) result.push(date);
+    offset += 1;
+  }
+  return result;
 }
 
 /** 距周期结束还剩几天（结束日当天为 0）；已到期返回负数 */
@@ -64,7 +75,8 @@ function weekMonday(boss: Boss): string {
 export function cycleWeeks(boss: Boss): number {
   const d = new Date(boss.startDate + 'T00:00:00');
   const dow = (d.getDay() + 6) % 7;
-  return Math.ceil((dow + boss.cycleDays) / 7);
+  const calendarDays = Math.round((new Date(cycleEndDate(boss) + 'T00:00:00').getTime() - d.getTime()) / 86400000) + 1;
+  return Math.ceil((dow + calendarDays) / 7);
 }
 
 /** 第 weekIdx 周的日期范围（真实日历周：周一 ~ 周日） */
@@ -74,11 +86,11 @@ export function weekRange(boss: Boss, weekIdx: number): { from: string; to: stri
 }
 
 export function currentWeekIndex(boss: Boss): number {
-  const day = cycleDayIndex(boss);
-  if (day <= 0) return -1;
-  const d = new Date(boss.startDate + 'T00:00:00');
-  const dow = (d.getDay() + 6) % 7;
-  return Math.floor((dow + day - 1) / 7);
+  const today = todayStr();
+  if (today < boss.startDate || today > cycleEndDate(boss)) return -1;
+  const monday = new Date(weekMonday(boss) + 'T00:00:00').getTime();
+  const current = new Date(today + 'T00:00:00').getTime();
+  return Math.floor(Math.round((current - monday) / 86400000) / 7);
 }
 
 export interface BossStats {
@@ -94,19 +106,21 @@ export interface BossStats {
 
 export function bossStats(b: Boss): BossStats {
   const dayNow = cycleDayIndex(b);
-  const dailyElapsed = dayNow;
-  const dailyDone = b.daily.length;
+  const eligibleDates = cycleDates(b);
+  const eligibleSet = new Set(eligibleDates);
+  const dailyElapsed = eligibleDates.filter((date) => date <= todayStr()).length;
+  const dailyDone = b.daily.filter((date) => eligibleSet.has(date)).length;
   const weeksTotal = cycleWeeks(b);
   const visibleWeekKeys = new Set(Array.from({ length: weeksTotal }, (_, i) => weekRange(b, i).from));
   const weeklyDone = b.weekly.filter((key) => visibleWeekKeys.has(key)).length;
 
   let tasksDone = 0;
   let tasksTotal = 0;
-  if (b.tier >= 3 && b.show.bigEvent) {
+  if (b.services.bigEvent && b.show.bigEvent) {
     tasksTotal += 1;
     if (b.bigEvent.done) tasksDone += 1;
   }
-  if (b.tier === 4) {
+  if (b.services.smallEvents && b.show.bigEvent) {
     tasksTotal += 3; // 小活动
     b.smallEvents.forEach((e) => e.done && tasksDone++);
   }
@@ -126,13 +140,20 @@ export function bossStats(b: Boss): BossStats {
     tasksTotal += 1;
     if (b.optionals.gacha.done) tasksDone++;
   }
+  b.extraTasks.filter((task) => task.visible).forEach((task) => {
+    tasksTotal += 1;
+    if (task.done) tasksDone += 1;
+  });
 
   const dailyPart = b.cycleDays > 0 ? dailyDone / b.cycleDays : 0;
   const weeklyPart = weeksTotal > 0 ? weeklyDone / weeksTotal : 0;
   const taskPart = tasksTotal > 0 ? tasksDone / tasksTotal : 1;
-  const overall = Math.round(
-    (dailyPart * 0.5 + (b.tier >= 2 ? weeklyPart * 0.2 : 0) + (tasksTotal > 0 ? taskPart * (b.tier >= 2 ? 0.3 : 0.5) : 0)) * 100
-  );
+  const parts: Array<{ value: number; weight: number }> = [];
+  if (b.services.daily && b.show.daily) parts.push({ value: dailyPart, weight: 0.5 });
+  if (b.services.weekly && b.show.weekly) parts.push({ value: weeklyPart, weight: 0.2 });
+  if (tasksTotal > 0) parts.push({ value: taskPart, weight: 0.3 });
+  const weight = parts.reduce((sum, part) => sum + part.weight, 0);
+  const overall = weight ? Math.round(parts.reduce((sum, part) => sum + part.value * part.weight, 0) / weight * 100) : 100;
 
   return { dayNow, dailyDone, dailyElapsed, weeksTotal, weeklyDone, tasksDone, tasksTotal, overall: Math.min(overall, 100) };
 }

@@ -28,9 +28,10 @@ export default function EventCard({ event, badge, editable, onToggle, onEdit }: 
       <div className="flex items-center gap-3 px-4 py-3.5">
         <button
           type="button"
+          disabled={!editable}
           onClick={editable ? onToggle : undefined}
           className={`shrink-0 transition-transform duration-300 ${editable ? 'cursor-pointer hover:scale-110 active:scale-95' : 'cursor-default'}`}
-          aria-label={event.done ? '标记未完成' : '标记完成'}
+          aria-label={editable ? (event.done ? '标记未完成' : '标记完成') : undefined}
         >
           {event.done ? (
             <CheckCircle2 className="check-pop text-[#2fbf8f]" size={26} />
@@ -49,6 +50,7 @@ export default function EventCard({ event, badge, editable, onToggle, onEdit }: 
           >
             {event.name || '未命名活动'}
           </p>
+          {(event.openDate || event.deadline) && <p className="mt-1 text-[10px] font-semibold text-[#8aa2b8]">{event.openDate ? `${event.openDate} 开放` : ''}{event.openDate && event.deadline ? ' · ' : ''}{event.deadline ? `${event.deadline} 截止` : ''}</p>}
         </div>
         <span
           className="chip shrink-0"

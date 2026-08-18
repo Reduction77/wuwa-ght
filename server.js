@@ -1,183 +1,300 @@
-/**
- * 鸣潮托管站 · 服务器版一体服务（零依赖，Node 20+ 直接跑）
- * - 静态托管 dist/ 前端页面（gzip + 缓存策略）
- * - GET  /api/data           读取托管数据（公开，老板端要查）
- * - PUT  /api/data           保存托管数据（需管理密码）
- * - GET  /api/check          校验管理密码
- * - POST /api/upload         上传活动图片（需管理密码，存服务器本地）
- * - POST /api/passcode       老板自助改口令（凭旧口令验证，只改自己的，不需要管理密码）
- * - GET  /api/uploads/*      读取已上传图片
- *
- * 环境变量：
- *   PORT           监听端口（默认 130）
- *   DATA_DIR       数据目录（默认 ./data；Docker 里挂 /data 卷即可持久化）
- *   ADMIN_PASSWORD 后台管理密码（默认 admin888，务必修改！）
- */
+/** 鸣潮托管站服务器：公共信息、老板会话、后台数据三层隔离。 */
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import zlib from 'node:zlib';
+import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 
-const http = require('node:http');
-const fs = require('node:fs');
-const path = require('node:path');
-const zlib = require('node:zlib');
-const crypto = require('node:crypto');
-
+const ROOT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 130);
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(ROOT_DIR, 'data');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin888';
-const DIST = path.join(__dirname, 'dist');
+const DIST = path.join(ROOT_DIR, 'dist');
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
+const BACKUP_DIR = path.join(DATA_DIR, 'backups');
 const DATA_FILE = path.join(DATA_DIR, 'data.json');
+const SESSION_TTL = 12 * 60 * 60 * 1000;
+const MAX_BODY = 12 * 1024 * 1024;
+const MAX_BACKUPS = 30;
 
-const MIME = {
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'application/javascript; charset=utf-8',
-  '.css': 'text/css; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.svg': 'image/svg+xml',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.webp': 'image/webp',
-  '.gif': 'image/gif',
-  '.ico': 'image/x-icon',
-  '.woff': 'font/woff',
-  '.woff2': 'font/woff2',
-  '.txt': 'text/plain; charset=utf-8',
-};
-const IMG_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
-const MAX_BODY = 12 * 1024 * 1024; // 12MB，够放压缩后的图片
-
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-// 首次启动：用打包进镜像的初始数据做种子
-if (!fs.existsSync(DATA_FILE)) {
-  const seed = path.join(DIST, 'data.json');
-  fs.copyFileSync(fs.existsSync(seed) ? seed : path.join(__dirname, 'public', 'data.json'), DATA_FILE);
-  console.log('[init] 已用初始数据创建', DATA_FILE);
+if (process.env.NODE_ENV === 'production' && (!process.env.ADMIN_PASSWORD || ADMIN_PASSWORD === 'admin888')) {
+  throw new Error('生产环境必须设置非默认的 ADMIN_PASSWORD');
 }
 
-function send(res, code, body, headers = {}) {
-  res.writeHead(code, headers);
+const MIME = {
+  '.html': 'text/html; charset=utf-8', '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp', '.gif': 'image/gif', '.ico': 'image/x-icon',
+  '.woff': 'font/woff', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8',
+};
+const IMG_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.gif']);
+const sessions = new Map();
+const loginAttempts = new Map();
+
+fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+fs.mkdirSync(BACKUP_DIR, { recursive: true });
+if (!fs.existsSync(DATA_FILE)) {
+  const builtSeed = path.join(DIST, 'data.json');
+  fs.copyFileSync(fs.existsSync(builtSeed) ? builtSeed : path.join(ROOT_DIR, 'public', 'data.json'), DATA_FILE);
+}
+
+function send(res, code, body = '', headers = {}) {
+  res.writeHead(code, { 'X-Content-Type-Options': 'nosniff', ...headers });
   res.end(body);
 }
 
-function sendJson(res, code, obj) {
-  send(res, code, JSON.stringify(obj), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+function sendJson(res, code, value, headers = {}) {
+  send(res, code, JSON.stringify(value), { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers });
 }
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
-    req.on('data', (c) => {
-      size += c.length;
+    req.on('data', (chunk) => {
+      size += chunk.length;
       if (size > MAX_BODY) {
-        reject(new Error('请求体过大'));
+        reject(Object.assign(new Error('请求体过大'), { status: 413 }));
         req.destroy();
         return;
       }
-      chunks.push(c);
+      chunks.push(chunk);
     });
     req.on('end', () => resolve(Buffer.concat(chunks)));
     req.on('error', reject);
   });
 }
 
-function authed(req) {
-  const h = req.headers.authorization || '';
-  return h === `Bearer ${ADMIN_PASSWORD}`;
+async function readJsonBody(req) {
+  try {
+    return JSON.parse((await readBody(req)).toString('utf8'));
+  } catch (error) {
+    if (error?.status) throw error;
+    throw Object.assign(new Error('JSON 格式不正确'), { status: 400 });
+  }
+}
+
+function loadData() {
+  const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  data.revision = Number.isInteger(data.revision) ? data.revision : 0;
+  data.bosses = Array.isArray(data.bosses) ? data.bosses : [];
+  return data;
+}
+
+function backupCurrent() {
+  if (!fs.existsSync(DATA_FILE)) return;
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  fs.copyFileSync(DATA_FILE, path.join(BACKUP_DIR, `data-${stamp}.json`));
+  fs.readdirSync(BACKUP_DIR).filter((name) => /^data-.*\.json$/.test(name)).sort().reverse()
+    .slice(MAX_BACKUPS).forEach((name) => fs.unlinkSync(path.join(BACKUP_DIR, name)));
+}
+
+function atomicWriteData(data, backup = true) {
+  if (backup) backupCurrent();
+  const temp = path.join(DATA_DIR, `.data-${process.pid}-${Date.now()}.tmp`);
+  fs.writeFileSync(temp, JSON.stringify(data, null, 1), { encoding: 'utf8', flag: 'wx' });
+  fs.renameSync(temp, DATA_FILE);
+}
+
+function safeEqual(left, right) {
+  const a = Buffer.from(String(left));
+  const b = Buffer.from(String(right));
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function adminAuthed(req) {
+  return safeEqual(String(req.headers.authorization || '').replace(/^Bearer\s+/i, ''), ADMIN_PASSWORD);
+}
+
+function cookies(req) {
+  return Object.fromEntries(String(req.headers.cookie || '').split(';').map((part) => {
+    const index = part.indexOf('=');
+    return index < 0 ? ['', ''] : [part.slice(0, index).trim(), decodeURIComponent(part.slice(index + 1).trim())];
+  }).filter(([key]) => key));
+}
+
+function currentBoss(req, data) {
+  const token = cookies(req).wuwa_boss_session;
+  const session = token ? sessions.get(token) : null;
+  if (!session || session.expiresAt <= Date.now()) {
+    if (token) sessions.delete(token);
+    return null;
+  }
+  session.expiresAt = Date.now() + SESSION_TTL;
+  return data.bosses.find((boss) => boss.id === session.bossId) || null;
+}
+
+function bossView(boss) {
+  const { passcode: _passcode, internalNote: _internalNote, ...safe } = boss;
+  return safe;
+}
+
+function clientIp(req) {
+  return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+}
+
+function loginAllowed(ip) {
+  const recent = (loginAttempts.get(ip) || []).filter((time) => Date.now() - time < 10 * 60 * 1000);
+  loginAttempts.set(ip, recent);
+  return recent.length < 10;
+}
+
+function validateData(data) {
+  if (!data || !Array.isArray(data.bosses)) return '数据格式不正确';
+  const ids = new Set();
+  const passcodes = new Set();
+  for (const boss of data.bosses) {
+    if (!boss || typeof boss.id !== 'string' || !boss.id) return '存在缺少 ID 的老板';
+    if (ids.has(boss.id)) return `老板 ID 重复：${boss.id}`;
+    ids.add(boss.id);
+    const passcode = String(boss.passcode || '').trim();
+    if (passcode.length < 4 || passcode.length > 16) return `${boss.name || boss.id} 的口令必须为 4-16 位`;
+    if (passcodes.has(passcode)) return `查看口令重复：${passcode}`;
+    passcodes.add(passcode);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(boss.startDate || ''))) return `${boss.name || boss.id} 的开始日期无效`;
+    if (!Number.isInteger(boss.cycleDays) || boss.cycleDays < 1 || boss.cycleDays > 365) return `${boss.name || boss.id} 的周期天数无效`;
+  }
+  return '';
 }
 
 const server = http.createServer(async (req, res) => {
   try {
-    const url = new URL(req.url, 'http://x');
+    const url = new URL(req.url, 'http://localhost');
     const pathname = decodeURIComponent(url.pathname);
 
-    /* ---------- API ---------- */
-    if (pathname === '/api/data' && req.method === 'GET') {
-      send(res, 200, fs.readFileSync(DATA_FILE), { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store' });
-      return;
+    if (pathname === '/api/mode' && req.method === 'GET') return sendJson(res, 200, { server: true });
+    if (pathname === '/api/health' && req.method === 'GET') {
+      const stat = fs.statSync(DATA_FILE);
+      return sendJson(res, 200, { ok: true, updatedAt: stat.mtime.toISOString(), backups: fs.readdirSync(BACKUP_DIR).length });
     }
-    if (pathname === '/api/check' && req.method === 'GET') {
-      sendJson(res, authed(req) ? 200 : 401, { ok: authed(req) });
-      return;
+    if (pathname === '/api/public' && req.method === 'GET') {
+      const data = loadData();
+      return sendJson(res, 200, { version: data.version, revision: data.revision, updatedAt: data.updatedAt, accepting: data.accepting, bosses: [] });
+    }
+    if (pathname === '/api/check' && req.method === 'GET') return sendJson(res, adminAuthed(req) ? 200 : 401, { ok: adminAuthed(req) });
+    if (pathname === '/api/data' && req.method === 'GET') {
+      if (!adminAuthed(req)) return sendJson(res, 401, { ok: false, error: '需要后台身份' });
+      return sendJson(res, 200, loadData());
     }
     if (pathname === '/api/data' && req.method === 'PUT') {
-      if (!authed(req)) return sendJson(res, 401, { ok: false, error: '管理密码不对' });
-      const body = await readBody(req);
-      const parsed = JSON.parse(body.toString('utf8'));
-      if (!parsed || !Array.isArray(parsed.bosses)) return sendJson(res, 400, { ok: false, error: '数据格式不正确' });
-      fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 1));
-      sendJson(res, 200, { ok: true });
-      return;
+      if (!adminAuthed(req)) return sendJson(res, 401, { ok: false, error: '管理密码不对' });
+      const incoming = await readJsonBody(req);
+      const error = validateData(incoming);
+      if (error) return sendJson(res, 400, { ok: false, error });
+      const current = loadData();
+      if (Number(incoming.revision || 0) !== current.revision) {
+        return sendJson(res, 409, { ok: false, error: '服务器数据已被其他页面更新，请重新读取后再操作' });
+      }
+      incoming.revision = current.revision + 1;
+      incoming.updatedAt = new Date().toISOString();
+      atomicWriteData(incoming);
+      return sendJson(res, 200, incoming);
+    }
+    if (pathname === '/api/boss/login' && req.method === 'POST') {
+      const ip = clientIp(req);
+      if (!loginAllowed(ip)) return sendJson(res, 429, { ok: false, error: '尝试次数过多，请10分钟后再试' });
+      const { passcode = '' } = await readJsonBody(req);
+      const data = loadData();
+      const boss = data.bosses.find((item) => safeEqual(item.passcode || '', String(passcode).trim()));
+      if (!boss) {
+        loginAttempts.set(ip, [...(loginAttempts.get(ip) || []), Date.now()]);
+        return sendJson(res, 401, { ok: false, error: '口令不正确' });
+      }
+      loginAttempts.delete(ip);
+      const token = crypto.randomBytes(32).toString('base64url');
+      sessions.set(token, { bossId: boss.id, expiresAt: Date.now() + SESSION_TTL });
+      const secure = String(req.headers['x-forwarded-proto'] || '').includes('https') ? '; Secure' : '';
+      return sendJson(res, 200, { ok: true, boss: bossView(boss), updatedAt: data.updatedAt }, {
+        'Set-Cookie': `wuwa_boss_session=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_TTL / 1000}${secure}`,
+      });
+    }
+    if (pathname === '/api/boss/me' && req.method === 'GET') {
+      const data = loadData();
+      const boss = currentBoss(req, data);
+      return boss ? sendJson(res, 200, { ok: true, boss: bossView(boss), updatedAt: data.updatedAt }) : sendJson(res, 401, { ok: false, error: '登录已过期' });
+    }
+    if (pathname === '/api/boss/session' && req.method === 'DELETE') {
+      const token = cookies(req).wuwa_boss_session;
+      if (token) sessions.delete(token);
+      return sendJson(res, 200, { ok: true }, { 'Set-Cookie': 'wuwa_boss_session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0' });
     }
     if (pathname === '/api/passcode' && req.method === 'POST') {
-      const body = JSON.parse((await readBody(req)).toString('utf8'));
-      const id = String(body.id || '');
-      const oldCode = String(body.oldPasscode || '').trim();
-      const newCode = String(body.newPasscode || '').trim();
-      if (!id || !oldCode || !newCode) return sendJson(res, 400, { ok: false, error: '参数不完整' });
+      const { newPasscode = '' } = await readJsonBody(req);
+      const newCode = String(newPasscode).trim();
       if (newCode.length < 4 || newCode.length > 16) return sendJson(res, 400, { ok: false, error: '新口令要 4-16 位' });
-      const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-      const boss = (data.bosses || []).find((b) => b.id === id);
-      if (!boss) return sendJson(res, 404, { ok: false, error: '找不到这位老板' });
-      if (boss.passcode !== oldCode) return sendJson(res, 403, { ok: false, error: '旧口令不对' });
+      const data = loadData();
+      const boss = currentBoss(req, data);
+      if (!boss) return sendJson(res, 401, { ok: false, error: '登录已过期，请重新登录' });
+      if (data.bosses.some((item) => item.id !== boss.id && safeEqual(item.passcode || '', newCode))) return sendJson(res, 409, { ok: false, error: '这个口令已被使用，请换一个' });
       boss.passcode = newCode;
-      fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 1));
-      sendJson(res, 200, { ok: true });
-      return;
+      data.revision += 1;
+      data.updatedAt = new Date().toISOString();
+      atomicWriteData(data);
+      return sendJson(res, 200, { ok: true });
     }
     if (pathname === '/api/upload' && req.method === 'POST') {
-      if (!authed(req)) return sendJson(res, 401, { ok: false, error: '管理密码不对' });
-      const body = JSON.parse((await readBody(req)).toString('utf8'));
-      const m = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/.exec(body.data || '');
-      if (!m) return sendJson(res, 400, { ok: false, error: '只支持 png/jpg/webp/gif 图片' });
-      const ext = m[1] === 'jpeg' ? '.jpg' : `.${m[1]}`;
+      if (!adminAuthed(req)) return sendJson(res, 401, { ok: false, error: '管理密码不对' });
+      const body = await readJsonBody(req);
+      const match = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/.exec(body.data || '');
+      if (!match) return sendJson(res, 400, { ok: false, error: '只支持 png/jpg/webp/gif 图片' });
+      const binary = Buffer.from(match[2], 'base64');
+      if (binary.length > 8 * 1024 * 1024) return sendJson(res, 413, { ok: false, error: '图片不能超过 8MB' });
+      const ext = match[1] === 'jpeg' ? '.jpg' : `.${match[1]}`;
       const name = `img-${Date.now()}-${crypto.randomBytes(4).toString('hex')}${ext}`;
-      fs.writeFileSync(path.join(UPLOAD_DIR, name), Buffer.from(m[2], 'base64'));
-      sendJson(res, 200, { ok: true, url: `/api/uploads/${name}` });
-      return;
+      fs.writeFileSync(path.join(UPLOAD_DIR, name), binary, { flag: 'wx' });
+      return sendJson(res, 200, { ok: true, url: `/api/uploads/${name}` });
+    }
+    if (pathname === '/api/cleanup-uploads' && req.method === 'POST') {
+      if (!adminAuthed(req)) return sendJson(res, 401, { ok: false, error: '管理密码不对' });
+      const serialized = JSON.stringify(loadData());
+      const used = new Set([...serialized.matchAll(/\/api\/uploads\/([^"\\]+)/g)].map((match) => path.basename(match[1])));
+      let removed = 0;
+      for (const name of fs.readdirSync(UPLOAD_DIR)) {
+        if (!used.has(name) && IMG_EXT.has(path.extname(name).toLowerCase())) {
+          fs.unlinkSync(path.join(UPLOAD_DIR, name));
+          removed += 1;
+        }
+      }
+      return sendJson(res, 200, { ok: true, removed });
     }
     if (pathname.startsWith('/api/uploads/') && req.method === 'GET') {
       const name = path.basename(pathname);
       const ext = path.extname(name).toLowerCase();
-      const fp = path.join(UPLOAD_DIR, name);
-      if (!IMG_EXT.has(ext) || !fs.existsSync(fp)) return sendJson(res, 404, { ok: false });
-      const headers = { 'Content-Type': MIME[ext], 'Cache-Control': 'public, max-age=31536000, immutable' };
-      send(res, 200, fs.readFileSync(fp), headers);
-      return;
+      const file = path.join(UPLOAD_DIR, name);
+      if (!IMG_EXT.has(ext) || !fs.existsSync(file)) return sendJson(res, 404, { ok: false });
+      return send(res, 200, fs.readFileSync(file), { 'Content-Type': MIME[ext], 'Cache-Control': 'public, max-age=31536000, immutable' });
     }
 
-    /* ---------- 静态页面 ---------- */
     if (req.method !== 'GET' && req.method !== 'HEAD') return sendJson(res, 405, { ok: false });
-    let rel = pathname === '/' ? '/index.html' : pathname;
-    let fp = path.normalize(path.join(DIST, rel));
-    if (!fp.startsWith(DIST)) return sendJson(res, 403, { ok: false });
-    if (!fs.existsSync(fp) || fs.statSync(fp).isDirectory()) {
-      rel = '/index.html'; // SPA 兜底
-      fp = path.join(DIST, 'index.html');
+    let relative = pathname === '/' ? '/index.html' : pathname;
+    let file = path.normalize(path.join(DIST, relative));
+    if (!file.startsWith(DIST + path.sep) && file !== DIST) return sendJson(res, 403, { ok: false });
+    if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+      relative = '/index.html';
+      file = path.join(DIST, 'index.html');
     }
-    const ext = path.extname(fp).toLowerCase();
-    const immutable = rel.startsWith('/assets/') || rel.startsWith('/uploads/');
-    const acceptsGzip = String(req.headers['accept-encoding'] || '').includes('gzip');
-    const buf = fs.readFileSync(fp);
-    const headers = {
-      'Content-Type': MIME[ext] || 'application/octet-stream',
-      'Cache-Control': immutable ? 'public, max-age=31536000, immutable' : 'no-cache',
-    };
-    const compressible = ['.html', '.js', '.css', '.json', '.svg', '.txt'].includes(ext);
-    if (compressible && acceptsGzip && buf.length > 1024) {
+    const ext = path.extname(file).toLowerCase();
+    const buffer = fs.readFileSync(file);
+    const headers = { 'Content-Type': MIME[ext] || 'application/octet-stream', 'Cache-Control': relative.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache' };
+    if (['.html', '.js', '.css', '.json', '.svg', '.txt'].includes(ext) && String(req.headers['accept-encoding'] || '').includes('gzip') && buffer.length > 1024) {
       headers['Content-Encoding'] = 'gzip';
-      headers['Vary'] = 'Accept-Encoding';
-      send(res, 200, zlib.gzipSync(buf, { level: 6 }), headers);
-    } else {
-      send(res, 200, buf, headers);
+      headers.Vary = 'Accept-Encoding';
+      return send(res, 200, zlib.gzipSync(buffer, { level: 6 }), headers);
     }
-  } catch (e) {
-    if (!res.headersSent) sendJson(res, 500, { ok: false, error: '服务器开小差了' });
-    console.error('[error]', e);
+    return send(res, 200, req.method === 'HEAD' ? '' : buffer, headers);
+  } catch (error) {
+    console.error('[error]', error);
+    if (!res.headersSent) sendJson(res, error?.status || 500, { ok: false, error: error?.status ? error.message : '服务器开小差了' });
   }
 });
 
+setInterval(() => {
+  for (const [token, session] of sessions) if (session.expiresAt <= Date.now()) sessions.delete(token);
+}, 30 * 60 * 1000).unref();
+
 server.listen(PORT, () => {
-  console.log(`[ready] 鸣潮托管站服务器版已启动：http://0.0.0.0:${PORT}`);
-  console.log(`[ready] 数据目录：${DATA_DIR}（挂载卷即可持久化）`);
+  console.log(`[ready] 鸣潮托管站：http://0.0.0.0:${PORT}`);
+  console.log(`[ready] 数据目录：${DATA_DIR}`);
 });

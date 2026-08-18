@@ -1,4 +1,4 @@
-import type { Boss, EventItem } from '@/types';
+import { tierServices, type Boss, type EventItem } from '@/types';
 import { useStore } from '@/lib/store';
 import DayGrid from '@/components/DayGrid';
 import EventCard from '@/components/EventCard';
@@ -15,14 +15,15 @@ interface Props {
 
 /** 后台：单个老板的完整编辑器 */
 export default function BossEditor({ boss }: Props) {
-  const { mutateBoss, renewBoss, github } = useStore();
+  const { data, mutateBoss, renewBoss, github } = useStore();
   const [eventEdit, setEventEdit] = useState<null | { kind: 'big' | number }>(null);
+  const [newTaskName, setNewTaskName] = useState('');
 
   const toggleDaily = (date: string) =>
     mutateBoss(boss.id, (b) => ({
       ...b,
       daily: b.daily.includes(date) ? b.daily.filter((d) => d !== date) : [...b.daily, date].sort(),
-    }));
+    }), { action: boss.daily.includes(date) ? '撤销日常打卡' : '完成日常打卡', detail: date });
 
   const toggleWeek = (i: number) =>
     mutateBoss(boss.id, (b) => {
@@ -31,7 +32,7 @@ export default function BossEditor({ boss }: Props) {
         ...b,
         weekly: b.weekly.includes(key) ? b.weekly.filter((w) => w !== key) : [...b.weekly, key].sort(),
       };
-    });
+    }, { action: boss.weekly.includes(weekRange(boss, i).from) ? '撤销周常打卡' : '完成周常打卡', detail: weekRange(boss, i).from });
 
   const setChallenge = (key: 'matrix' | 'sea' | 'tower' | 'holo', patch: Partial<{ enabled: boolean; done: boolean }>) =>
     mutateBoss(boss.id, (b) => ({ ...b, challenges: { ...b.challenges, [key]: { ...b.challenges[key], ...patch } } }));
@@ -43,6 +44,9 @@ export default function BossEditor({ boss }: Props) {
   const currentWeekKey = curWeekIdx >= 0 ? weekRange(boss, curWeekIdx).from : '';
   const weekDone = !!currentWeekKey && boss.weekly.includes(currentWeekKey);
   const ended = today > addDays(boss.startDate, boss.cycleDays - 1);
+  const notStarted = today < boss.startDate;
+  const canQuickLog = !ended && !notStarted && boss.issue.kind !== 'paused';
+  const duplicatePasscode = data.bosses.some((item) => item.id !== boss.id && item.passcode === boss.passcode);
 
   return (
     <div className="space-y-5">
@@ -76,15 +80,17 @@ export default function BossEditor({ boss }: Props) {
         </div>
         <button
           type="button"
+          disabled={!canQuickLog}
           onClick={() => toggleDaily(today)}
           className={todayDone ? 'btn-ghost' : 'btn-primary'}
         >
           {todayDone ? <CheckCircle2 size={17} /> : <Circle size={17} />}
           {todayDone ? '今日体力已清 ✓ 点我撤销' : `打卡：今日体力已清（${fmtCN(today)}）`}
         </button>
-        {boss.tier >= 2 && curWeekIdx >= 0 && (
+        {boss.services.weekly && curWeekIdx >= 0 && (
           <button
             type="button"
+            disabled={!canQuickLog}
             onClick={() => toggleWeek(curWeekIdx)}
             className={weekDone ? 'btn-ghost' : 'btn-primary'}
             style={weekDone ? undefined : { background: 'linear-gradient(135deg,#45c6a5,#2fbf8f)', boxShadow: '0 8px 24px -8px rgba(47,191,143,0.55)' }}
@@ -93,6 +99,7 @@ export default function BossEditor({ boss }: Props) {
             {weekDone ? '本周周常已清 ✓ 点我撤销' : `打卡：本周周常已清（第 ${curWeekIdx + 1} 周）`}
           </button>
         )}
+        {!canQuickLog && <p className="w-full text-right text-[11px] font-semibold text-[#d18d1f]">{boss.issue.kind === 'paused' ? '当前已暂停托管，快捷登记已锁定' : notStarted ? '托管周期尚未开始' : '周期已结束，请先续期再登记'}</p>}
       </div>
 
       {/* 基本设置 */}
@@ -107,9 +114,13 @@ export default function BossEditor({ boss }: Props) {
           </Field>
           <Field label="查看口令（默认手机后四位，老板想要自定义就直接改）">
             <input className="input-soft font-bold tracking-widest" value={boss.passcode} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, passcode: e.target.value.trim() }))} />
+            {duplicatePasscode && <span className="mt-1 block text-xs font-bold text-[#e05548]">口令与其他老板重复，保存会被阻止</span>}
           </Field>
           <Field label="托管套餐">
-            <select className="input-soft" value={boss.tier} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, tier: Number(e.target.value) as Boss['tier'] }))}>
+            <select className="input-soft" value={boss.tier} onChange={(e) => mutateBoss(boss.id, (b) => {
+              const tier = Number(e.target.value) as Boss['tier'];
+              return { ...b, tier, services: tierServices(tier) };
+            })}>
               <option value={1}>日体（3r/天）</option>
               <option value={2}>日体 + 周常（90r/月）</option>
               <option value={3}>日体 + 周常 + 大活动（145r/月）</option>
@@ -130,6 +141,50 @@ export default function BossEditor({ boss }: Props) {
         <Field label="备注（老板可见）" className="mt-3">
           <input className="input-soft" placeholder="例如：体力优先刷XX本" value={boss.note} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, note: e.target.value }))} />
         </Field>
+        <Field label="内部备注（仅后台可见）" className="mt-3">
+          <textarea className="input-soft min-h-20 resize-y" placeholder="例如：登录注意事项、沟通记录，不会展示给老板" value={boss.internalNote} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, internalNote: e.target.value }))} />
+        </Field>
+        <Field label="标签（用逗号分隔）" className="mt-3">
+          <input className="input-soft" placeholder="长期客户, 材料优先, 需要验证码" value={boss.tags.join(', ')} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, tags: e.target.value.split(/[,，]/).map((tag) => tag.trim()).filter(Boolean) }))} />
+        </Field>
+        <div className="mt-4 rounded-2xl border border-[#d9e9f9] bg-[#f8fbff] p-4">
+          <p className="text-sm font-bold" style={{ color: '#22405c' }}>实际服务项目</p>
+          <p className="mt-1 text-[11px]" style={{ color: '#8aa2b8' }}>套餐只是模板，这里可以按老板的真实订单单独增减</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {([
+              ['daily', '每日体力'], ['weekly', '每周周常'], ['bigEvent', '版本大活动'], ['smallEvents', '版本小活动'],
+            ] as const).map(([key, label]) => (
+              <button key={key} type="button" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, services: { ...b.services, [key]: !b.services[key] } }))}
+                className="chip" style={boss.services[key] ? { background: '#d6f4e7', color: '#1d9e74' } : { background: '#eef3f9', color: '#8aa2b8' }}>
+                {boss.services[key] ? '✓ ' : ''}{label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-[180px_1fr]">
+          <Field label="当前异常状态">
+            <select className="input-soft" value={boss.issue.kind} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, issue: { ...b.issue, kind: e.target.value as Boss['issue']['kind'], updatedAt: new Date().toISOString() } }))}>
+              <option value="none">正常</option>
+              <option value="login">登录失败</option>
+              <option value="verification">需要验证码</option>
+              <option value="maintenance">服务器维护</option>
+              <option value="waiting">等待老板操作</option>
+              <option value="paused">暂停托管</option>
+            </select>
+          </Field>
+          <Field label="异常说明（老板可见）">
+            <input className="input-soft" disabled={boss.issue.kind === 'none'} placeholder="说明原因或需要老板做什么" value={boss.issue.message} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, issue: { ...b.issue, message: e.target.value, updatedAt: new Date().toISOString() } }))} />
+          </Field>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" className="btn-ghost !px-4 !py-2 text-xs" disabled={boss.excludedDays.some((item) => item.date === today)} onClick={() => mutateBoss(boss.id, (b) => ({
+            ...b,
+            daily: b.daily.filter((date) => date !== today),
+            excludedDays: [...b.excludedDays, { date: today, reason: b.issue.message || '暂停托管' }],
+            issue: { ...b.issue, kind: 'paused', updatedAt: new Date().toISOString() },
+          }), { action: '暂停并顺延一天', detail: today })}>{boss.excludedDays.some((item) => item.date === today) ? '今天已暂停并顺延' : '今天暂停并顺延1天'}</button>
+          {[1, 3].map((days) => <button key={days} type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, cycleDays: Math.min(365, b.cycleDays + days) }), { action: '增加补偿天数', detail: `+${days} 天` })}>补偿 +{days} 天</button>)}
+        </div>
       </section>
 
       {/* 每日体力 */}
@@ -149,8 +204,52 @@ export default function BossEditor({ boss }: Props) {
         </div>
       </section>
 
+      {/* 临时加项 */}
+      <section className="paper-card px-6 py-6">
+        <h3 className="font-display text-lg" style={{ color: '#22405c' }}>临时加项</h3>
+        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>记录抽卡、临时刷材料等不属于固定套餐的一次性任务</p>
+        <div className="mt-4 flex gap-2">
+          <input className="input-soft" placeholder="输入任务名称" value={newTaskName} onChange={(e) => setNewTaskName(e.target.value)} onKeyDown={(e) => {
+            if (e.key !== 'Enter' || !newTaskName.trim()) return;
+            mutateBoss(boss.id, (b) => ({ ...b, extraTasks: [...b.extraTasks, { id: `task-${Date.now()}`, name: newTaskName.trim(), done: false, visible: true, createdAt: new Date().toISOString() }] }));
+            setNewTaskName('');
+          }} />
+          <button type="button" className="btn-primary shrink-0" disabled={!newTaskName.trim()} onClick={() => {
+            mutateBoss(boss.id, (b) => ({ ...b, extraTasks: [...b.extraTasks, { id: `task-${Date.now()}`, name: newTaskName.trim(), done: false, visible: true, createdAt: new Date().toISOString() }] }));
+            setNewTaskName('');
+          }}>添加</button>
+        </div>
+        <div className="mt-3 space-y-2">
+          {boss.extraTasks.map((task) => (
+            <div key={task.id} className="flex items-center gap-3 rounded-xl border border-[#d9e9f9] bg-white px-4 py-3">
+              <button type="button" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, extraTasks: b.extraTasks.map((item) => item.id === task.id ? { ...item, done: !item.done, doneAt: !item.done ? new Date().toISOString() : undefined } : item) }))}>
+                {task.done ? <CheckCircle2 size={20} className="text-[#2fbf8f]" /> : <Circle size={20} className="text-[#b9d2e8]" />}
+              </button>
+              <span className={`flex-1 text-sm font-bold ${task.done ? 'line-through text-[#8aa2b8]' : 'text-[#2b3f54]'}`}>{task.name}</span>
+              <button type="button" className="text-xs font-bold text-[#7e96ad]" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, extraTasks: b.extraTasks.map((item) => item.id === task.id ? { ...item, visible: !item.visible } : item) }))}>{task.visible ? '老板可见' : '仅后台'}</button>
+              <button type="button" aria-label="删除临时任务" className="text-[#e05548]" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, extraTasks: b.extraTasks.filter((item) => item.id !== task.id) }))}><Trash2 size={15} /></button>
+            </div>
+          ))}
+          {boss.extraTasks.length === 0 && <p className="py-3 text-center text-xs text-[#9db4c9]">暂无临时加项</p>}
+        </div>
+      </section>
+
+      {boss.cycleHistory.length > 0 && (
+        <section className="paper-card px-6 py-6">
+          <h3 className="font-display text-lg" style={{ color: '#22405c' }}>历史托管周期</h3>
+          <div className="mt-4 space-y-2">
+            {[...boss.cycleHistory].reverse().map((cycle) => (
+              <details key={cycle.id} className="rounded-xl border border-[#d9e9f9] bg-white px-4 py-3">
+                <summary className="cursor-pointer text-sm font-bold text-[#2b3f54]">{fmtCN(cycle.startDate)} 起 · {cycle.cycleDays} 天 · 日常 {cycle.daily.length}/{cycle.cycleDays}</summary>
+                <p className="mt-2 text-xs text-[#7e96ad]">周常完成 {cycle.weekly.length} 周 · 归档于 {new Date(cycle.endedAt + 'T00:00:00').toLocaleDateString('zh-CN')}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* 周常 */}
-      {boss.tier >= 2 && (
+      {boss.services.weekly && (
         <section className="paper-card px-6 py-6">
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-display text-lg" style={{ color: '#22405c' }}>每周周常登记</h3>
@@ -187,7 +286,7 @@ export default function BossEditor({ boss }: Props) {
       )}
 
       {/* 活动 */}
-      {boss.tier >= 3 && (
+      {boss.services.bigEvent && (
         <section className="paper-card px-6 py-6">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -201,7 +300,7 @@ export default function BossEditor({ boss }: Props) {
           </div>
           <div className="mt-4 space-y-3">
             <EventCard event={boss.bigEvent} badge="版本大活动" editable onToggle={() => mutateBoss(boss.id, (b) => ({ ...b, bigEvent: { ...b.bigEvent, done: !b.bigEvent.done } }))} onEdit={() => setEventEdit({ kind: 'big' })} />
-            {boss.tier === 4 && (
+            {boss.services.smallEvents && (
               <div className="grid gap-3 md:grid-cols-3">
                 {boss.smallEvents.map((e, i) => (
                   <EventCard
@@ -416,7 +515,7 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
   const event: EventItem = isBig ? boss.bigEvent : boss.smallEvents[idx];
 
   // 名称/图片是全服共享的（同一版本活动大家都一样），改动会同步到所有老板；完成状态仍各记各的
-  const apply = (patch: { name?: string; image?: string }) => syncEventMeta(isBig ? 'big' : idx, patch);
+  const apply = (patch: Partial<Pick<EventItem, 'name' | 'image' | 'openDate' | 'deadline'>>) => syncEventMeta(isBig ? 'big' : idx, patch);
 
   const pickImage = async (file: File) => {
     setBusy(true);
@@ -449,6 +548,14 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
         <Field label="活动名称" className="mt-4">
           <input className="input-soft" value={event.name} placeholder="输入当前版本的活动名" onChange={(e) => apply({ name: e.target.value })} />
         </Field>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          <Field label="开放日期（可选）">
+            <input type="date" className="input-soft" value={event.openDate || ''} onChange={(e) => apply({ openDate: e.target.value })} />
+          </Field>
+          <Field label="截止日期（可选）">
+            <input type="date" className="input-soft" value={event.deadline || ''} onChange={(e) => apply({ deadline: e.target.value })} />
+          </Field>
+        </div>
         <div className="mt-4">
           <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>活动图片（可选，不传就不显示图片位）</span>
           {event.image ? (

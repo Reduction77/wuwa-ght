@@ -91,7 +91,7 @@ export default function Landing({ onGoBoss, onGoAdmin }: Props) {
           <ServiceCard
             icon={<Tv size={22} />}
             title="周期灵活"
-            desc="默认 30 天，可按一个版本 42 天，或自定义天数"
+            desc="托管天数按实际订单设置，与游戏版本更新时间分开"
             className="rise-in rise-in-4"
           />
         </div>
