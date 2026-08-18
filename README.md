@@ -75,6 +75,8 @@
 
 ### 服务器（Docker）
 
+首次部署、域名 HTTPS、迁移旧数据、备份与更新请按照 [服务器详细部署指南](SERVER_DEPLOYMENT.md) 操作。
+
 ```bash
 # 先在同目录创建 .env，并写入 ADMIN_PASSWORD=你的强密码
 docker compose up -d
@@ -84,7 +86,7 @@ docker compose up -d
 
 ```bash
 docker build -t wuwa-ght .
-docker run -d --name wuwa-ght -p 130:130 \
+docker run -d --name wuwa-ght -p 127.0.0.1:130:130 \
   -e ADMIN_PASSWORD=换成你自己的管理密码 \
   -v wuwa-data:/data \
   wuwa-ght

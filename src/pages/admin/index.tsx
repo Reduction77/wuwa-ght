@@ -99,10 +99,12 @@ export default function Admin({ onBack }: Props) {
       </header>
 
       <RenewReminder onSelect={setSelectedId} />
-      <div className="mb-5 grid gap-4 md:grid-cols-3">
+      <div className="mb-5 grid gap-4 md:grid-cols-2">
         <AcceptingCard />
         <VersionResetCard />
-        <BackupCard />
+        <div className="md:col-span-2">
+          <BackupCard />
+        </div>
       </div>
       <TodayWorkbench onSelect={setSelectedId} />
       <AuditLog />
@@ -416,14 +418,14 @@ function AcceptingCard() {
   const acc = data.accepting ?? { on: true, text: '鸣潮 · 托管进行中' };
 
   return (
-    <div className="paper-card flex items-center gap-4 px-5 py-4">
+    <div className="paper-card flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
       <span
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-300"
         style={acc.on ? { background: '#d9f3e6', color: '#1d9e74' } : { background: '#ffe8c2', color: '#b06f0e' }}
       >
         {acc.on ? <BellRing size={18} /> : <PauseIcon />}
       </span>
-      <div className="flex-1">
+      <div className="min-w-0 flex-1">
         <p className="text-sm font-bold" style={{ color: '#22405c' }}>接单状态</p>
         <p className="mt-0.5 text-[11px]" style={{ color: '#8aa2b8' }}>
           首页顶部现在显示「{acc.text}」
@@ -557,7 +559,7 @@ function BackupCard() {
           {msg || (serverMode ? '把服务器上的数据存到本地，或从本地备份一键恢复' : github ? '把 GitHub 上的数据存到本地，或从本地备份一键恢复' : '本地模式下也可以先备份一份防丢')}
         </p>
       </div>
-      <div className="flex shrink-0 flex-wrap gap-2">
+      <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:shrink-0 sm:justify-end">
         {serverMode && adminKey && <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={async () => {
           if (!confirm('清理所有已不再被当前记录或历史周期引用的活动图片吗？')) return;
           try {

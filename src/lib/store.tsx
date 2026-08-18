@@ -76,6 +76,8 @@ export function normalizeSiteData(data: SiteData): SiteData {
   };
   return {
     version: Math.max(data.version ?? 1, 2),
+    // 服务器用 revision 做并发保存校验；迁移数据时必须保留，否则每次保存都会被误判为冲突。
+    revision: Number.isInteger(data.revision) ? data.revision : 0,
     updatedAt: data.updatedAt ?? new Date().toISOString(),
     accepting: {
       on: data.accepting?.on ?? true,
@@ -174,15 +176,22 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const reload = useCallback(async () => {
     setLoading(true);
+    const acceptRemote = (raw: string) => {
+      const next = normalizeSiteData(JSON.parse(raw));
+      dataRef.current = next;
+      setData(next);
+      setSource('remote');
+      setDirty(false);
+      setSaveState('idle');
+      setSaveError('');
+    };
     // 服务器版：数据直接在服务器上
     if (await detectServer()) {
       setServerMode(true);
       try {
         const key = loadAdminKey();
         const content = key ? await readServerData(key) : await readServerPublic();
-        setData(normalizeSiteData(JSON.parse(content)));
-        setSource('remote');
-        setDirty(false);
+        acceptRemote(content);
         setLoading(false);
         return;
       } catch {
@@ -190,12 +199,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         saveAdminKey(null);
         setAdminKeyState(null);
         try {
-          setData(normalizeSiteData(JSON.parse(await readServerPublic())));
-          setSource('remote');
+          acceptRemote(await readServerPublic());
         } catch {
           setSource('bundled');
         }
         setDirty(false);
+        setSaveState('idle');
+        setSaveError('');
         setLoading(false);
         return;
       }
@@ -205,9 +215,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (gh) {
       try {
         const { content } = await readRemoteData(gh);
-        setData(normalizeSiteData(JSON.parse(content)));
-        setSource('remote');
-        setDirty(false);
+        acceptRemote(content);
         setLoading(false);
         return;
       } catch {
@@ -390,7 +398,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const importData = useCallback(
     (incoming: SiteData) => {
-      touch(normalizeSiteData(incoming));
+      // 恢复备份是明确的整包覆盖，但提交仍需携带服务器当前修订号，不能沿用旧备份的 revision。
+      touch({ ...normalizeSiteData(incoming), revision: dataRef.current.revision ?? 0 });
     },
     [touch]
   );

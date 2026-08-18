@@ -4,7 +4,9 @@ services:
     build: .
     container_name: wuwa-ght
     ports:
-      - "130:130"
+      # 只允许服务器本机访问，由 Caddy/Nginx 通过 HTTPS 反向代理。
+      # 不要改成 0.0.0.0，后台密码不能通过公网明文 HTTP 传输。
+      - "127.0.0.1:130:130"
     environment:
       # 启动前在 .env 中设置 ADMIN_PASSWORD；未设置时拒绝启动
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:?请先在 .env 中设置后台管理密码}

@@ -69,29 +69,29 @@ export default function BossProgress({ boss }: Props) {
       <section className="resonance-panel rise-in px-5 py-5 sm:px-7 sm:py-7">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <p className="eyebrow text-[#79d9d8]">WUTHERING WAVES · 托管进度</p>
+            <p className="eyebrow text-[#4f8fbe]">WUTHERING WAVES · 托管进度</p>
             <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
-              <h2 className="font-display text-3xl text-white sm:text-4xl">{boss.name}</h2>
-              <span className="mb-1 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs font-bold text-[#bfe5e5]">
+              <h2 className="font-display text-3xl text-[var(--ink)] sm:text-4xl">{boss.name}</h2>
+              <span className="mb-1 rounded-full border border-[#bedaf0] bg-white/65 px-3 py-1 text-xs font-bold text-[#367caf]">
                 {TIER_LABEL[boss.tier]}
               </span>
             </div>
-            <p className="mt-2 text-sm text-[#a9c3c8]">
+            <p className="mt-2 text-sm text-[var(--ink-soft)]">
               {fmtCN(boss.startDate)}—{fmtCN(endDate)}
               {ended ? ' · 本周期已结束' : notStarted ? ' · 尚未开始' : ` · 第${dayNow}/${boss.cycleDays}天`}
               {boss.excludedDays.length > 0 ? ` · 已暂停顺延${boss.excludedDays.length}天` : ''}
             </p>
           </div>
           <div className="flex items-baseline gap-2 lg:text-right">
-            <strong className="font-display text-5xl leading-none text-[#62e0dc] sm:text-6xl">{stats.overall}%</strong>
-            <span className="text-xs font-bold text-[#91acb2]">总体完成</span>
+            <strong className="font-display text-5xl leading-none text-[var(--signal-strong)] sm:text-6xl">{stats.overall}%</strong>
+            <span className="text-xs font-bold text-[var(--muted-text)]">总体完成</span>
           </div>
         </div>
 
         <div className="mt-5 cycle-rail" aria-label={`托管周期已进行${cyclePercent}%`}>
           <span style={{ width: `${cyclePercent}%` }} />
         </div>
-        <div className="mt-2 flex justify-between text-[10px] font-semibold text-[#78979e]">
+        <div className="mt-2 flex justify-between text-[10px] font-semibold text-[var(--muted-text)]">
           <span>开始 · {fmtCN(boss.startDate)}</span>
           <span>{ended ? '已结束' : `周期 ${cyclePercent}%`} · {fmtCN(endDate)}</span>
         </div>
@@ -107,7 +107,7 @@ export default function BossProgress({ boss }: Props) {
           />
         </div>
 
-        {boss.note && <p className="mt-5 rounded-xl border border-white/10 bg-white/[0.06] px-4 py-3 text-sm leading-relaxed text-[#c0d3d6]">托管备注：{boss.note}</p>}
+        {boss.note && <p className="mt-5 rounded-xl border border-[#c8dff2] bg-white/55 px-4 py-3 text-sm leading-relaxed text-[var(--ink-soft)]">托管备注：{boss.note}</p>}
       </section>
 
       {boss.issue.kind !== 'none' && (
@@ -238,7 +238,7 @@ function ProgressBar({ percent }: { percent: number }) {
   const value = Math.min(100, Math.max(0, percent));
   return (
     <div className="h-2 overflow-hidden rounded-full bg-[var(--surface-soft)]" role="progressbar" aria-valuenow={Math.round(value)} aria-valuemin={0} aria-valuemax={100}>
-      <div className="bar-fill h-full rounded-full bg-gradient-to-r from-[#24b8bd] to-[#287fd0]" style={{ width: `${value}%` }} />
+      <div className="bar-fill h-full rounded-full bg-gradient-to-r from-[#45a9ff] to-[#1e8bf0]" style={{ width: `${value}%` }} />
     </div>
   );
 }

@@ -33,10 +33,10 @@
     --line: #d6e3e8;
     --line-strong: #b9cfd7;
     --surface: #ffffff;
-    --surface-soft: #f1f7f8;
-    --surface-cyan: #e5f7f7;
-    --signal: #24b8bd;
-    --signal-strong: #158f9b;
+    --surface-soft: #f1f7fd;
+    --surface-cyan: #e7f3ff;
+    --signal: #45a9ff;
+    --signal-strong: #1e8bf0;
     --signal-blue: #287fd0;
     --success: #24936f;
     --success-soft: #e1f4ec;
@@ -61,7 +61,7 @@ html { scroll-behavior: smooth; }
 body {
   margin: 0;
   font-family: 'Baloo 2', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC', sans-serif;
-  background: #f3f8f9;
+  background: #f3f9ff;
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
@@ -172,11 +172,11 @@ select.input-soft option { color: var(--ink); }
 /* Background atmosphere: static lines and gradients cost almost nothing to render. */
 .site-atmosphere {
   background:
-    linear-gradient(90deg, transparent 0 49.9%, rgba(36, 184, 189, 0.06) 50%, transparent 50.1%) 0 0 / 88px 88px,
-    linear-gradient(0deg, transparent 0 49.9%, rgba(36, 184, 189, 0.05) 50%, transparent 50.1%) 0 0 / 88px 88px,
-    radial-gradient(circle at 10% 2%, rgba(54, 197, 201, 0.14), transparent 25%),
-    radial-gradient(circle at 92% 28%, rgba(40, 127, 208, 0.08), transparent 22%),
-    linear-gradient(180deg, #eef8f8, #f8fbfb 45%, #f1f7f8);
+    linear-gradient(90deg, transparent 0 49.9%, rgba(69, 169, 255, 0.045) 50%, transparent 50.1%) 0 0 / 88px 88px,
+    linear-gradient(0deg, transparent 0 49.9%, rgba(69, 169, 255, 0.04) 50%, transparent 50.1%) 0 0 / 88px 88px,
+    radial-gradient(circle at 10% 2%, rgba(121, 196, 255, 0.2), transparent 25%),
+    radial-gradient(circle at 92% 28%, rgba(69, 169, 255, 0.1), transparent 22%),
+    linear-gradient(180deg, #edf7ff, #f8fbff 45%, #f1f8ff);
 }
 
 /* Boss-facing surfaces: calm, spacious and outcome-first. */
@@ -185,20 +185,21 @@ select.input-soft option { color: var(--ink); }
 .resonance-panel {
   position: relative;
   overflow: hidden;
-  color: white;
+  color: var(--ink);
+  border: 1px solid #c8e0f4;
   border-radius: 1.55rem;
   background:
-    radial-gradient(circle at 82% 12%, rgba(60, 224, 220, 0.18), transparent 28%),
-    linear-gradient(125deg, #0b1822, #123342 70%, #134957);
-  box-shadow: 0 22px 60px -34px rgba(8, 33, 44, 0.85);
+    radial-gradient(circle at 82% 12%, rgba(255, 255, 255, 0.8), transparent 30%),
+    linear-gradient(125deg, #f4faff, #dfedfa 70%, #e9f7ff);
+  box-shadow: 0 18px 50px -34px rgba(48, 111, 164, 0.45);
 }
 .resonance-panel::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.35;
-  background: repeating-linear-gradient(112deg, transparent 0 35px, rgba(95, 225, 221, 0.16) 36px, transparent 37px 74px);
+  opacity: 0.5;
+  background: repeating-linear-gradient(112deg, transparent 0 35px, rgba(69, 169, 255, 0.1) 36px, transparent 37px 74px);
   mask-image: linear-gradient(90deg, transparent 20%, black);
 }
 .resonance-panel > * { position: relative; z-index: 1; }
@@ -207,20 +208,22 @@ select.input-soft option { color: var(--ink); }
 .signal-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  border: 1px solid rgba(151, 216, 217, 0.18);
+  border: 1px solid #c8dff2;
   border-radius: 1rem;
   overflow: hidden;
 }
-.signal-stat { min-height: 104px; padding: 1rem; background: rgba(255, 255, 255, 0.055); }
-.signal-stat + .signal-stat { border-left: 1px solid rgba(151, 216, 217, 0.16); }
-.signal-stat__label { color: #9fc5c9; font-size: 0.72rem; font-weight: 700; }
-.signal-stat__value { margin-top: 0.38rem; color: white; font-size: 1.15rem; font-weight: 800; }
-.signal-stat__meta { margin-top: 0.2rem; color: #91acb2; font-size: 0.68rem; }
-.signal-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: #5ce0d9; box-shadow: 0 0 0 4px rgba(92, 224, 217, 0.1); }
+.signal-stat { min-height: 96px; padding: 1rem; background: rgba(255, 255, 255, 0.48); }
+.signal-stat + .signal-stat { border-left: 1px solid #c8dff2; }
+.signal-stat__label { color: #6688a4; font-size: 0.72rem; font-weight: 700; }
+.signal-stat__value { margin-top: 0.38rem; color: var(--ink); font-size: 1.15rem; font-weight: 800; }
+.signal-stat__meta { margin-top: 0.2rem; color: var(--muted-text); font-size: 0.68rem; }
+.signal-dot { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--signal); box-shadow: 0 0 0 4px rgba(69, 169, 255, 0.12); }
 .signal-dot.pending { background: #f2bd62; box-shadow: 0 0 0 4px rgba(242, 189, 98, 0.1); }
 
-.cycle-rail { height: 5px; overflow: hidden; border-radius: 999px; background: rgba(191, 225, 226, 0.18); }
-.cycle-rail > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #56e0d9, #4ba5db); transition: width 0.55s ease-out; }
+.cycle-rail { height: 5px; overflow: hidden; border-radius: 999px; background: #d3e5f4; }
+.cycle-rail > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--signal), var(--signal-strong)); transition: width 0.55s ease-out; }
+
+.day-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
 
 .progress-section {
   overflow: hidden;
@@ -289,14 +292,16 @@ select.input-soft option { color: var(--ink); }
 @media (max-width: 640px) {
   .boss-shell { --section-pad: 1rem; }
   .boss-shell, .admin-shell { padding-left: 0.9rem !important; padding-right: 0.9rem !important; }
-  .boss-topbar { position: sticky; top: 0; z-index: 30; margin: 0 -0.9rem; padding: 0.65rem 0.9rem !important; background: #f3f8f9; }
+  .boss-topbar { position: sticky; top: 0; z-index: 30; margin: 0 -0.9rem; padding: 0.65rem 0.9rem !important; background: #f3f9ff; }
   .resonance-panel { border-radius: 1.25rem; }
   .signal-grid { grid-template-columns: 1fr; }
   .signal-stat { min-height: 76px; padding: 0.78rem 0.9rem; }
-  .signal-stat + .signal-stat { border-left: 0; border-top: 1px solid rgba(151, 216, 217, 0.16); }
+  .signal-stat + .signal-stat { border-left: 0; border-top: 1px solid #c8dff2; }
   .signal-stat__value { font-size: 1rem; }
   .progress-section > summary { min-height: 62px; }
   .task-row { padding: 0.68rem 0.75rem; }
+  .day-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.35rem; }
+  .day-grid > button { min-height: 48px; border-radius: 0.65rem; }
   .mobile-full { width: 100%; }
   .paper-card { border-radius: 1rem; }
 }

@@ -14,7 +14,7 @@ export default function DayGrid({ boss, editable, onToggleDay }: Props) {
   const cells = cycleDates(boss);
 
   return (
-    <div className="grid grid-cols-7 gap-1.5">
+    <div className="day-grid grid gap-2">
       {cells.map((date, i) => {
         const done = boss.daily.includes(date);
         const isToday = date === today;
@@ -28,7 +28,7 @@ export default function DayGrid({ boss, editable, onToggleDay }: Props) {
             title={`第 ${i + 1} 天 · ${fmtCN(date)}${done ? ' · 已清体力' : ''}`}
             aria-label={`第 ${i + 1} 天，${fmtCN(date)}，${done ? '已完成' : future ? '尚未到达' : '未完成'}`}
             className={[
-              'group relative flex min-h-11 flex-col items-center justify-center rounded-lg py-1 text-xs font-bold transition-transform duration-200 sm:aspect-square',
+              'group relative flex min-h-16 flex-col items-center justify-center rounded-xl px-1 py-2 text-xs font-bold transition-transform duration-200',
               done
                 ? 'text-white shadow-sm'
                 : future
