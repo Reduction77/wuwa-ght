@@ -224,6 +224,9 @@ select.input-soft option { color: var(--ink); }
 .cycle-rail > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--signal), var(--signal-strong)); transition: width 0.55s ease-out; }
 
 .day-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
+.day-cell { height: 68px; }
+.day-cell-number { font-size: 1.08rem; font-weight: 800; line-height: 1.1; }
+.day-cell-date { margin-top: 0.28rem; font-size: 0.7rem; font-weight: 700; line-height: 1; }
 
 .progress-section {
   overflow: hidden;
@@ -301,7 +304,9 @@ select.input-soft option { color: var(--ink); }
   .progress-section > summary { min-height: 62px; }
   .task-row { padding: 0.68rem 0.75rem; }
   .day-grid { grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.35rem; }
-  .day-grid > button { min-height: 48px; border-radius: 0.65rem; }
+  .day-cell { height: 56px; border-radius: 0.65rem; }
+  .day-cell-number { font-size: 0.96rem; }
+  .day-cell-date { margin-top: 0.2rem; font-size: 0.62rem; }
   .mobile-full { width: 100%; }
   .paper-card { border-radius: 1rem; }
 }

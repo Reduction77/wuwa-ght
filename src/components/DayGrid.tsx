@@ -28,7 +28,7 @@ export default function DayGrid({ boss, editable, onToggleDay }: Props) {
             title={`第 ${i + 1} 天 · ${fmtCN(date)}${done ? ' · 已清体力' : ''}`}
             aria-label={`第 ${i + 1} 天，${fmtCN(date)}，${done ? '已完成' : future ? '尚未到达' : '未完成'}`}
             className={[
-              'group relative flex min-h-16 flex-col items-center justify-center rounded-xl px-1 py-2 text-xs font-bold transition-transform duration-200',
+              'day-cell group relative flex flex-col items-center justify-center rounded-xl px-1 text-xs font-bold transition-transform duration-200',
               done
                 ? 'text-white shadow-sm'
                 : future
@@ -37,16 +37,18 @@ export default function DayGrid({ boss, editable, onToggleDay }: Props) {
               isToday ? 'today-breathe ring-2 ring-[var(--signal)]' : '',
               editable ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default',
             ].join(' ')}
-            style={done ? { background: 'linear-gradient(135deg,var(--signal),var(--signal-strong))' } : undefined}
+            style={done ? { background: 'linear-gradient(135deg,#7bc8ff,#54aff3)' } : undefined}
           >
             {done && (
               <span className="check-pop absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--success)] text-white shadow">
                 <Check size={10} strokeWidth={4} />
               </span>
             )}
-            <span className="leading-none">{i + 1}</span>
-            <span className={`mt-0.5 text-[9px] font-medium leading-none ${done ? 'text-white/85' : ''}`}>
-              {date.slice(5).replace('-', '/')}
+            <span className="flex h-[80%] w-[80%] flex-col items-center justify-center">
+              <span className="day-cell-number">{i + 1}</span>
+              <span className={`day-cell-date ${done ? 'text-white/95' : ''}`}>
+                {date.slice(5).replace('-', '/')}
+              </span>
             </span>
           </button>
         );
