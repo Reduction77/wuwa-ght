@@ -92,8 +92,8 @@ export default function BossPortal({ onBack }: Props) {
   /* ---------- 已登录：展示进度 ---------- */
   if (boss) {
     return (
-      <div className="view-swap mx-auto max-w-5xl px-5 pb-24">
-        <header className="flex flex-wrap items-center justify-between gap-3 py-6">
+      <div className="boss-shell view-swap mx-auto max-w-5xl px-5 pb-24">
+        <header className="boss-topbar flex items-center justify-between gap-2 py-5">
           <button type="button" onClick={onBack} className="btn-ghost !px-4 !py-2 text-xs">
             <ArrowLeft size={14} /> 返回首页
           </button>
@@ -118,7 +118,7 @@ export default function BossPortal({ onBack }: Props) {
             setCode('');
           }}
         />
-        <p className="mt-8 text-center text-xs" style={{ color: '#9db4c9' }}>
+        <p className="mt-8 text-center text-xs text-[var(--muted-text)]">
           数据更新于 {new Date(serverMode ? serverUpdatedAt : data.updatedAt).toLocaleString('zh-CN')} · 有疑问随时<WeChatTip />戳我
         </p>
       </div>
@@ -127,20 +127,20 @@ export default function BossPortal({ onBack }: Props) {
 
   /* ---------- 口令输入 ---------- */
   return (
-    <div className="view-swap mx-auto flex min-h-[80vh] max-w-md flex-col justify-center px-5 pb-24">
-      <div className="paper-card rise-in px-7 py-9 text-center" style={shake ? { animation: 'wiggle 0.12s ease-in-out 4' } : undefined}>
-        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: 'linear-gradient(135deg,#45a9ff,#1e8bf0)' }}>
+    <div className="boss-shell view-swap mx-auto flex min-h-[80vh] max-w-md flex-col justify-center px-5 pb-24">
+      <div className="paper-card rise-in px-6 py-8 text-center sm:px-7 sm:py-9" style={shake ? { animation: 'wiggle 0.12s ease-in-out 4' } : undefined}>
+        <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: 'linear-gradient(135deg,var(--signal),var(--signal-strong))' }}>
           <KeyRound size={26} />
         </span>
-        <h2 className="font-display mt-4 text-2xl" style={{ color: '#22405c' }}>
+        <h2 className="font-display mt-4 text-2xl text-[var(--ink)]">
           请出示口令
         </h2>
-        <p className="mt-2 text-sm leading-relaxed" style={{ color: '#7e96ad' }}>
-          口令就是你<b style={{ color: '#2a7fd4' }}>手机号的后四位</b>（账号绑定的那个号）。
-          如果你和别的老板尾号一样，我会在后面补个数字——比如 0001 重复了就试试 <b style={{ color: '#2a7fd4' }}>00011</b>，还不行就 00012、00013……
+        <p className="mt-2 text-sm leading-relaxed text-[var(--ink-soft)]">
+          口令就是你<b className="text-[var(--signal-strong)]">手机号的后四位</b>（账号绑定的那个号）。
+          如果你和别的老板尾号一样，我会在后面补个数字——比如 0001 重复了就试试 <b className="text-[var(--signal-strong)]">00011</b>，还不行就 00012、00013……
           如果你找我设置过自定义口令，直接输你设的那个就行。
         </p>
-        <p className="mt-1.5 text-xs" style={{ color: '#9db4c9' }}>
+        <p className="mt-1.5 text-xs text-[var(--muted-text)]">
           实在进不去？<WeChatTip />问我就好
         </p>
         <input
@@ -156,11 +156,11 @@ export default function BossPortal({ onBack }: Props) {
           onKeyDown={(e) => e.key === 'Enter' && !busy && void tryLogin()}
           autoFocus
         />
-        {error && <p className="mt-2 text-sm font-semibold" style={{ color: '#e05548' }}>{error}</p>}
+        {error && <p className="mt-2 text-sm font-semibold text-[var(--danger)]">{error}</p>}
         <button type="button" disabled={busy} onClick={() => void tryLogin()} className="btn-primary mt-5 w-full">
           {busy ? '正在验证…' : '查看我的托管进度'}
         </button>
-        <button type="button" onClick={onBack} className="mt-4 text-xs font-semibold" style={{ color: '#8aa2b8' }}>
+        <button type="button" onClick={onBack} className="mt-4 text-xs font-semibold text-[var(--muted-text)]">
           <ArrowLeft size={12} className="mr-1 inline" />返回首页
         </button>
       </div>

@@ -63,7 +63,7 @@ export default function Admin({ onBack }: Props) {
   }
 
   return (
-    <div className="view-swap mx-auto max-w-6xl px-5 pb-36">
+    <div className="admin-shell view-swap mx-auto max-w-6xl px-5 pb-36">
       <header className="flex flex-wrap items-center justify-between gap-3 py-6">
         <div className="flex items-center gap-3">
           <button type="button" onClick={onBack} className="btn-ghost !px-4 !py-2 text-xs">
@@ -256,7 +256,7 @@ function TodayWorkbench({ onSelect }: { onSelect: (id: string) => void }) {
           <h2 className="font-display text-lg text-[#22405c]">今日工作台</h2>
           <p className="mt-1 text-xs text-[#8aa2b8]">{fmtCN(today)} · 凌晨4点刷新 · 待完成 {pending.length}/{active.length} 位</p>
         </div>
-        <button type="button" disabled={!batchable.length} className="btn-primary !px-4 !py-2 text-xs" onClick={completeAll}>无异常账号全部已清</button>
+        <button type="button" disabled={!batchable.length} className="btn-primary mobile-full !px-4 !py-2 text-xs sm:w-auto" onClick={completeAll}>无异常账号全部已清</button>
       </div>
       <div className="mt-4">
         <div className="space-y-2">
@@ -267,7 +267,7 @@ function TodayWorkbench({ onSelect }: { onSelect: (id: string) => void }) {
             const weeklyDone = !!weekKey && boss.weekly.includes(weekKey);
             const eventDeadlines = [boss.bigEvent, ...boss.smallEvents].filter((event) => !event.done && event.deadline && event.deadline >= today && event.deadline <= addDays(today, 3));
             return (
-              <div key={boss.id} className={`grid grid-cols-2 items-center gap-2 rounded-xl border px-4 py-3 sm:grid-cols-[minmax(140px,1fr)_140px_140px_100px] sm:gap-3 ${boss.issue.kind !== 'none' ? 'border-[#ffd9a0] bg-[#fffaf2]' : 'border-[#d9e9f9] bg-white'}`}>
+              <div key={boss.id} className={`grid grid-cols-1 items-center gap-2 rounded-xl border px-3 py-3 sm:grid-cols-[minmax(140px,1fr)_140px_140px_100px] sm:gap-3 sm:px-4 ${boss.issue.kind !== 'none' ? 'border-[#ffd9a0] bg-[#fffaf2]' : 'border-[var(--line)] bg-white'}`}>
                 <button type="button" className="min-w-0 text-left" onClick={() => onSelect(boss.id)}>
                   <p className="truncate text-sm font-bold text-[#22405c]">{boss.name}</p>
                   <p className="truncate text-[11px] text-[#8aa2b8]">{boss.issue.kind !== 'none' ? `⚠ ${boss.issue.message || '存在异常'}` : eventDeadlines.length ? `⏰ ${eventDeadlines.length} 个活动即将截止` : boss.tags.join(' · ') || boss.account || TIER_LABEL[boss.tier]}</p>
@@ -749,15 +749,15 @@ function SaveBar() {
 
   return (
     <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4">
-      <div className="paper-card flex w-full max-w-3xl items-center gap-3 !rounded-full px-5 py-3" style={{ boxShadow: '0 12px 40px -10px rgba(30,139,240,0.35)' }}>
+      <div className="paper-card flex w-full max-w-3xl items-center gap-2 !rounded-2xl px-3 py-2.5 sm:gap-3 sm:!rounded-full sm:px-5 sm:py-3" style={{ boxShadow: 'var(--shadow-md)' }}>
         <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dirty ? 'bg-[#f2a93b]' : 'bg-[#2fbf8f]'}`} />
-        <span className="flex-1 truncate text-xs font-semibold" style={{ color: '#5b7a97' }}>
+        <span className="hidden flex-1 truncate text-xs font-semibold text-[var(--ink-soft)] sm:block">
           {!online ? '当前离线，改动已暂存在本机，联网后会自动同步' : dirty ? '有未保存的改动' : `所有改动已保存 · 更新于 ${new Date(data.updatedAt).toLocaleString('zh-CN')}`}
           {saveState === 'error' && <span style={{ color: '#e05548' }}>（{saveError}）</span>}
         </span>
-        {canUndo && <button type="button" onClick={undo} disabled={saveState === 'saving'} className="btn-ghost !px-4 !py-2 text-xs"><RotateCcw size={14} /> 撤销上一步</button>}
-        <button type="button" onClick={save} disabled={saveState === 'saving'} className="btn-primary !px-5 !py-2 text-sm">
-          <CloudUpload size={15} /> {label}
+        {canUndo && <button type="button" onClick={undo} disabled={saveState === 'saving'} className="btn-ghost !px-3 !py-2 text-xs sm:!px-4"><RotateCcw size={14} /> <span className="hidden sm:inline">撤销上一步</span></button>}
+        <button type="button" onClick={save} disabled={saveState === 'saving'} className="btn-primary flex-1 !px-4 !py-2 text-sm sm:flex-none sm:!px-5">
+          <CloudUpload size={15} /> <span className="sm:hidden">{saveState === 'saving' ? '保存中…' : saveState === 'error' ? '重试' : '保存'}</span><span className="hidden sm:inline">{label}</span>
         </button>
       </div>
     </div>
@@ -788,7 +788,7 @@ function LoginGate({ onBack, onConnected, onKey }: { onBack: () => void; onConne
 
   if (serverMode) {
     return (
-      <div className="view-swap mx-auto flex min-h-[85vh] max-w-lg flex-col justify-center px-5 pb-24">
+      <div className="admin-shell view-swap mx-auto flex min-h-[85vh] max-w-lg flex-col justify-center px-5 pb-24">
         <div className="paper-card rise-in px-7 py-8">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: 'linear-gradient(135deg,#45a9ff,#1e8bf0)' }}>
             <KeyRound size={26} />
@@ -837,7 +837,7 @@ function LoginGate({ onBack, onConnected, onKey }: { onBack: () => void; onConne
   };
 
   return (
-    <div className="view-swap mx-auto flex min-h-[85vh] max-w-lg flex-col justify-center px-5 pb-24">
+    <div className="admin-shell view-swap mx-auto flex min-h-[85vh] max-w-lg flex-col justify-center px-5 pb-24">
       <div className="paper-card rise-in px-7 py-8">
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: 'linear-gradient(135deg,#45a9ff,#1e8bf0)' }}>
           <Github size={26} />

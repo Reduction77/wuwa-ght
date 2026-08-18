@@ -42,7 +42,7 @@ export default function App() {
 function AdminFallback() {
   return (
     <div className="flex min-h-[60vh] items-center justify-center">
-      <p className="font-display animate-pulse text-lg" style={{ color: '#5b7a97' }}>后台加载中…</p>
+      <p className="font-display animate-pulse text-lg text-[var(--ink-soft)]">后台加载中…</p>
     </div>
   );
 }
