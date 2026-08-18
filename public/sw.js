@@ -1,4 +1,4 @@
-const CACHE = 'wuwa-ght-shell-v1';
+const CACHE = 'wuwa-ght-shell-v2';
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['./', './index.html', './favicon.svg'])));

@@ -75,26 +75,11 @@
 
 ### 服务器（Docker）
 
-首次部署、域名 HTTPS、迁移旧数据、备份与更新请按照 [服务器详细部署指南](SERVER_DEPLOYMENT.md) 操作。
+服务器版的首次部署、Nginx Proxy Manager 容器网络、域名 HTTPS、旧数据迁移、备份、更新和常见错误修复，统一放在独立文档中：
 
-```bash
-# 先在同目录创建 .env，并写入 ADMIN_PASSWORD=你的强密码
-docker compose up -d
-```
+**[查看服务器详细部署与故障修复指南](SERVER_DEPLOYMENT.md)**
 
-或纯 Docker：
-
-```bash
-docker build -t wuwa-ght .
-docker run -d --name wuwa-ght -p 127.0.0.1:130:130 \
-  -e ADMIN_PASSWORD=换成你自己的管理密码 \
-  -v wuwa-data:/data \
-  wuwa-ght
-```
-
-数据（`data.json`、活动图片和最近 30 份自动备份）都在 `/data` 卷里，备份用 `docker cp wuwa-ght:/data ./备份` 或后台「备份到本地」按钮。
-
-服务器版会把公共信息、老板会话和后台数据分开：老板口令由服务器校验，浏览器只会收到当前老板自己的数据。后台连续 30 分钟无操作会自动退出；生产环境未设置管理密码或仍使用 `admin888` 时服务会拒绝启动。
+请不要只执行一条 `docker compose up` 就直接上线；至少完成指南中的管理密码、数据卷权限、反向代理网络、HTTPS 和完整备份检查。
 
 ## 技术栈
 

@@ -1,0 +1,11 @@
+# Nginx Proxy Manager 运行在 Docker 中时使用：
+# docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d
+services:
+  wuwa-ght:
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-npm_default}

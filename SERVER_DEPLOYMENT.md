@@ -1,6 +1,6 @@
 # 鸣潮托管站服务器详细部署指南
 
-本文档对应当前仓库的服务器版实现：Docker 负责构建和运行 React 页面与 Node API，数据持久化在 Docker 卷的 `/data` 目录，Caddy 负责域名、HTTPS 和反向代理。
+本文档对应当前仓库的服务器版实现：Docker 负责构建和运行 React 页面与 Node API，数据持久化在 Docker 卷的 `/data` 目录。主流程按“服务器上已经有 Docker 版 Nginx Proxy Manager（NPM）”编写，文末也保留宿主机 Caddy 的替代方案。
 
 推荐架构：
 
@@ -8,8 +8,8 @@
 老板/管理员浏览器
         │ HTTPS 443
         ▼
-      Caddy
-        │ HTTP 127.0.0.1:130
+ Nginx Proxy Manager 容器
+        │ Docker 共享网络，HTTP wuwa-ght:130
         ▼
   wuwa-ght 容器
         │
@@ -20,7 +20,15 @@
   └─ backups/
 ```
 
-这种方式不会把应用的 130 端口直接暴露到公网。Caddy 收到 HTTPS 请求后会自动添加 `X-Forwarded-Proto`，服务器据此给老板会话 Cookie 添加 `Secure` 属性。
+这种方式不会把应用的 130 端口直接暴露到公网。NPM 和网站容器通过同一个 Docker 网络通信，NPM 对外提供域名和 HTTPS，并转发 `X-Forwarded-Proto`，服务器据此给老板会话 Cookie 添加 `Secure` 属性。
+
+本文特别包含以下实际故障的修复：
+
+- 服务器没有 `.env.example`，无法复制环境变量模板。
+- 容器报 `EACCES: permission denied, mkdir '/data/backups'`。
+- 应用健康检查为 200，但网页仍然 502。
+- 后台持续提示“服务器数据已被其他页面更新”。
+- 代码已经更新，但浏览器仍显示旧界面。
 
 ## 1. 部署前需要准备
 
@@ -157,9 +165,10 @@ nano .env
 
 ```env
 ADMIN_PASSWORD=WuwaAdmin2026Safe88
+PROXY_NETWORK=npm_default
 ```
 
-上面的密码只是格式示例，不能原样照抄。建议使用至少 12～16 位的字母和数字组合，可以包含 `_` 或 `-`。为避免 Compose 解析问题，尽量不要使用中文、空格、`#`、`$`、单引号或双引号。
+上面的密码只是格式示例，不能原样照抄。建议使用至少 12～16 位的字母和数字组合，可以包含 `_` 或 `-`。为避免 Compose 解析问题，尽量不要使用中文、空格、`#`、`$`、单引号或双引号。`PROXY_NETWORK` 填 NPM 容器实际所在的 Docker 网络，通常是 `npm_default`。
 
 在 nano 中保存：
 
@@ -185,7 +194,7 @@ ls -l .env
 
 ```bash
 ADMIN_PASSWORD_VALUE="$(openssl rand -hex 24)"
-printf 'ADMIN_PASSWORD=%s\n' "$ADMIN_PASSWORD_VALUE" > .env
+printf 'ADMIN_PASSWORD=%s\nPROXY_NETWORK=npm_default\n' "$ADMIN_PASSWORD_VALUE" > .env
 chmod 600 .env
 printf '后台管理密码：%s\n' "$ADMIN_PASSWORD_VALUE"
 unset ADMIN_PASSWORD_VALUE
@@ -201,12 +210,37 @@ unset ADMIN_PASSWORD_VALUE
 
 ## 6. 首次构建并启动
 
+### 6.1 确认 Nginx Proxy Manager 的 Docker 网络
+
+先查看网络：
+
+```bash
+sudo docker network ls
+```
+
+常见的 NPM 网络名是 `npm_default`。可以进一步确认里面有哪些容器：
+
+```bash
+sudo docker network inspect npm_default --format '{{range .Containers}}{{println .Name}}{{end}}'
+```
+
+如果实际网络名不是 `npm_default`，把它写入 `.env`：
+
+```env
+ADMIN_PASSWORD=你的后台管理密码
+PROXY_NETWORK=实际的NPM网络名
+```
+
+仓库中的 `docker-compose.npm.yml` 会读取 `PROXY_NETWORK`，默认值为 `npm_default`。不要把网站和 NPM 分别留在 `wuwa-ght_default`、`npm_default` 两个隔离网络中，否则 NPM 无法访问网站容器。
+
+### 6.2 使用 NPM 覆盖配置启动
+
 ```bash
 cd /opt/wuwa-ght
-sudo docker compose config
-sudo docker compose build --pull
-sudo docker compose up -d
-sudo docker compose ps
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml config
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml build --pull
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml ps
 ```
 
 首次构建需要下载 Node 镜像和 npm 依赖，耗时取决于服务器网络。`docker compose config` 会在密码缺失时提前报错，但它也可能把环境变量展开到输出中，因此不要把完整输出发送到公开聊天或日志平台。
@@ -215,6 +249,13 @@ sudo docker compose ps
 
 ```bash
 sudo docker compose logs --tail=100 wuwa-ght
+```
+
+日志中应出现：
+
+```text
+[ready] 鸣潮托管站：http://0.0.0.0:130
+[ready] 数据目录：/data
 ```
 
 检查本机健康接口：
@@ -232,7 +273,73 @@ sudo docker inspect --format='{{.State.Health.Status}}' wuwa-ght
 
 Compose 已经把端口绑定为 `127.0.0.1:130:130`，因此外网不能直接访问 130 端口。这是预期行为。
 
-## 7. 安装 Caddy 并配置 HTTPS
+确认网站容器已经自动加入 NPM 网络：
+
+```bash
+PROXY_NETWORK_NAME="$(sed -n 's/^PROXY_NETWORK=//p' .env)"
+PROXY_NETWORK_NAME="${PROXY_NETWORK_NAME:-npm_default}"
+sudo docker network inspect "$PROXY_NETWORK_NAME" --format '{{range .Containers}}{{println .Name}}{{end}}'
+```
+
+如果 `.env` 没写 `PROXY_NETWORK`，直接检查默认网络：
+
+```bash
+sudo docker network inspect npm_default --format '{{range .Containers}}{{println .Name}}{{end}}'
+```
+
+输出中应同时存在 NPM 容器和 `wuwa-ght`。
+
+## 7. 配置 Nginx Proxy Manager 和 HTTPS
+
+进入 Nginx Proxy Manager 管理界面，新增或编辑 Proxy Host：
+
+- Domain Names：填写真实域名，例如 `wuwa.example.com`。
+- Scheme：`http`。
+- Forward Hostname / IP：`wuwa-ght`。
+- Forward Port：`130`。
+- Websockets Support：可以开启。
+- Block Common Exploits：可以开启。
+
+不能填写 `127.0.0.1`。NPM 在容器里运行时，`127.0.0.1` 指向 NPM 容器自己，并不指向网站容器。
+
+在 SSL 页面：
+
+1. 选择 Request a new SSL Certificate。
+2. 开启 Force SSL。
+3. 同意证书服务条款并保存。
+
+NPM 官方也建议把同一主机上的上游容器加入自定义 Docker 网络，并在 Proxy Host 中直接使用服务名和容器端口：<https://develop.nginxproxymanager.com/advanced-config/#best-practice-use-a-docker-network>。
+
+域名 A 记录必须指向服务器公网 IPv4，云安全组和 UFW 都必须放行 80、443。
+
+保存后验证：
+
+```bash
+curl -I https://wuwa.example.com
+curl -fsS https://wuwa.example.com/api/health
+```
+
+浏览器入口：
+
+- 首页：`https://wuwa.example.com/`
+- 老板入口：`https://wuwa.example.com/#boss`
+- 管理后台：`https://wuwa.example.com/#admin`
+
+### 7.1 立即修复已经存在的 502
+
+如果旧部署没有使用 `docker-compose.npm.yml`，可以先临时连接网络恢复网站：
+
+```bash
+sudo docker network connect npm_default wuwa-ght
+```
+
+然后在 NPM 中把上游改成 `http://wuwa-ght:130`。临时连接会在容器重建后丢失，所以最终仍要使用仓库中的覆盖文件重新创建容器：
+
+```bash
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d --force-recreate
+```
+
+### 7.2 不使用 NPM：宿主机 Caddy 替代方案
 
 Caddy 的 Ubuntu 官方包会自动作为 systemd 服务运行：
 
@@ -307,7 +414,7 @@ curl -fsS https://wuwa.example.com/api/health
 7. 退出后台并删除或归档测试老板。
 8. 执行健康检查，确认容器状态为 `healthy`。
 
-如果浏览器访问的是 HTTPS，但老板登录 Cookie 没有 `Secure`，检查 Caddy 是否直接反向代理到 `127.0.0.1:130`，以及请求是否正确携带 `X-Forwarded-Proto: https`。标准 Caddy `reverse_proxy` 会自动处理该请求头。
+如果浏览器访问的是 HTTPS，但老板登录 Cookie 没有 `Secure`，检查反向代理是否向网站传递 `X-Forwarded-Proto: https`。NPM 的标准 Proxy Host 和 Caddy 的 `reverse_proxy` 都会正常处理该请求头。
 
 ## 9. 从原网站迁移数据
 
@@ -399,14 +506,14 @@ git status --short
 
 ```bash
 git pull --ff-only
-sudo docker compose build --pull
-sudo docker compose up -d
-sudo docker compose ps
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml build --pull
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml ps
 sudo docker compose logs --tail=100 wuwa-ght
 curl -fsS http://127.0.0.1:130/api/health
 ```
 
-`docker compose up -d` 会重新创建应用容器，但不会删除命名卷，因此 `/data` 会保留。不要执行 `docker compose down -v`，其中 `-v` 会删除数据卷。
+`docker compose up -d` 会重新创建应用容器，但不会删除命名卷，因此 `/data` 会保留。NPM 覆盖文件会在每次重建时重新加入共享网络。不要执行 `docker compose down -v`，其中 `-v` 会删除数据卷。
 
 更新会使保存在内存中的老板登录会话失效，老板重新输入口令即可；业务数据不会因此丢失。
 
@@ -429,8 +536,8 @@ ADMIN_PASSWORD=你的新后台密码
 
 ```bash
 chmod 600 .env
-sudo docker compose up -d --force-recreate
-sudo docker compose ps
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d --force-recreate
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml ps
 ```
 
 修改密码不会删除老板资料、完成记录、图片或备份，也不会改变老板查看口令。容器重新创建后旧后台密码立即失效；确认新密码可以登录后，再从密码管理器中删除旧密码。
@@ -465,6 +572,36 @@ sudo docker inspect wuwa-ght --format='{{json .Mounts}}'
 
 ## 14. 常见故障排查
 
+### `cp: cannot stat '.env.example': No such file or directory`
+
+服务器上的代码版本较旧或当前目录不对。先确认目录：
+
+```bash
+pwd
+ls Dockerfile docker-compose.yml server.js
+```
+
+`.env.example` 不是运行必需文件，可以直接创建自己的配置：
+
+```bash
+nano .env
+```
+
+写入：
+
+```env
+ADMIN_PASSWORD=你自定义的后台密码
+PROXY_NETWORK=npm_default
+```
+
+然后执行：
+
+```bash
+chmod 600 .env
+```
+
+创建 `.env` 不需要 `sudo`，否则文件可能变为 root 所有。后台密码可以完全自定义，建议使用至少 12～16 位字母和数字组合。
+
 ### Compose 提示没有设置 ADMIN_PASSWORD
 
 检查当前目录和 `.env`：
@@ -476,6 +613,50 @@ grep '^ADMIN_PASSWORD=' .env
 ```
 
 不要把真实密码对应的命令输出发给别人。
+
+### `network ... declared as external, but could not be found`
+
+说明 `.env` 中填写的 NPM 网络名与服务器实际名称不同：
+
+```bash
+sudo docker network ls
+```
+
+找到 Nginx Proxy Manager 所在网络，例如 `npm_default`，然后修改：
+
+```env
+PROXY_NETWORK=npm_default
+```
+
+重新启动：
+
+```bash
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d
+```
+
+### `EACCES: permission denied, mkdir '/data/backups'`
+
+原因是旧数据卷的 `/data` 归 root 所有，而当前镜像使用普通 `node` 用户运行。只修复权限，不要删除数据卷：
+
+```bash
+cd /opt/wuwa-ght
+sudo docker compose down
+sudo docker compose run --rm \
+  --user root \
+  --entrypoint sh \
+  wuwa-ght \
+  -c 'mkdir -p /data/backups /data/uploads && chown -R node:node /data'
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d --force-recreate
+```
+
+验证：
+
+```bash
+sudo docker compose logs --tail=100 wuwa-ght
+curl -i http://127.0.0.1:130/api/health
+```
+
+不要执行 `docker compose down -v`；`-v` 会删除包含老板数据和图片的数据卷。
 
 ### 容器反复重启
 
@@ -496,6 +677,43 @@ sudo docker compose logs --tail=100 wuwa-ght
 
 确认 Compose 中是 `127.0.0.1:130:130`，容器内部端口是 130。
 
+### 本地健康检查 200，但域名访问仍然 502
+
+如果下面命令返回 `HTTP/1.1 200 OK`：
+
+```bash
+curl -i http://127.0.0.1:130/api/health
+```
+
+说明应用、数据和端口都正常，不要继续重建网站。502 位于反向代理层。
+
+Docker 版 Nginx Proxy Manager 不能通过 `127.0.0.1:130` 访问宿主机网站端口，因为容器内的 `127.0.0.1` 指向 NPM 自己。检查网络：
+
+```bash
+sudo docker network ls
+sudo docker network inspect npm_default --format '{{range .Containers}}{{println .Name}}{{end}}'
+```
+
+输出中必须同时包含 NPM 容器和 `wuwa-ght`。立即修复：
+
+```bash
+sudo docker network connect npm_default wuwa-ght
+```
+
+NPM Proxy Host 必须填写：
+
+- Scheme：`http`
+- Forward Hostname：`wuwa-ght`
+- Forward Port：`130`
+
+永久修复则使用仓库中的 `docker-compose.npm.yml`：
+
+```bash
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d --force-recreate
+```
+
+如果 NPM 网络不是 `npm_default`，把实际名称填入 `.env` 的 `PROXY_NETWORK`。
+
 ### 域名可以解析，但 HTTPS 申请失败
 
 检查：
@@ -503,11 +721,11 @@ sudo docker compose logs --tail=100 wuwa-ght
 1. 域名 A 记录是否指向当前服务器公网 IP。
 2. 云安全组和 UFW 是否同时放行 80、443。
 3. 是否有 Nginx、Apache 等其他程序占用端口。
-4. Caddy 日志是否出现 ACME 错误。
+4. NPM 申请证书时是否出现错误。
 
 ```bash
 sudo ss -lntp | grep -E ':(80|443) '
-sudo journalctl -u caddy -n 200 --no-pager
+sudo docker ps --format 'table {{.Names}}\t{{.Image}}\t{{.Ports}}'
 ```
 
 ### 首页正常，后台保存失败
@@ -519,7 +737,34 @@ sudo docker compose logs --tail=200 wuwa-ght
 curl -fsS https://你的域名/api/health
 ```
 
-如果出现修订冲突提示，说明另一个后台页面先保存了数据。按照页面提示重新读取后再操作，不要反复覆盖。
+如果出现“服务器数据已被其他页面更新”：
+
+1. 先确认服务器已经部署包含修订号修复的新版本。
+2. 关闭其他仍打开的后台页面。
+3. 强制刷新浏览器，再点“重新读取”。
+4. 检查刚才失败的登记是否需要重新填写。
+
+当前版本会在读取服务器数据时保留 `revision`，从旧备份恢复时也会使用服务器当前修订号。旧版本会丢失该值，从而陷入反复冲突。
+
+更新并重建：
+
+```bash
+git pull --ff-only
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml build --pull
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d --force-recreate
+```
+
+### 已经更新代码，但浏览器仍显示旧界面
+
+先确认新镜像确实构建并启动：
+
+```bash
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml build --no-cache
+sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml up -d --force-recreate
+curl -fsS http://127.0.0.1:130/api/health
+```
+
+然后在浏览器按 `Ctrl + F5` 强制刷新。手机端可以关闭该网页的所有标签后重新打开；如果仍未更新，清除该站点的缓存和 Service Worker 后再访问。当前仓库已经提升离线缓存版本，部署后会清理旧的应用外壳缓存。
 
 ### 恢复 JSON 后图片不显示
 
