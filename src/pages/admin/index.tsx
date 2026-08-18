@@ -6,7 +6,7 @@ import { testConnection, type GithubConfig } from '@/lib/github';
 import { checkAdminKey } from '@/lib/server';
 import { TIER_LABEL, type Boss, type SiteData } from '@/types';
 import BossEditor from './BossEditor';
-import { ArrowLeft, BellRing, CloudUpload, Download, Github, KeyRound, Plus, RefreshCw, Trash2, Unplug, Upload } from 'lucide-react';
+import { ArrowLeft, BellRing, CloudUpload, Download, Github, KeyRound, Plus, RefreshCw, RotateCcw, Trash2, Unplug, Upload } from 'lucide-react';
 
 interface Props {
   onBack: () => void;
@@ -65,8 +65,9 @@ export default function Admin({ onBack }: Props) {
       </header>
 
       <RenewReminder onSelect={setSelectedId} />
-      <div className="mb-5 grid gap-4 md:grid-cols-2">
+      <div className="mb-5 grid gap-4 md:grid-cols-3">
         <AcceptingCard />
+        <VersionResetCard />
         <BackupCard />
       </div>
 
@@ -242,7 +243,7 @@ function CycleDaysField({ value, onChange }: { value: number; onChange: (days: n
     <div className="space-y-2">
       <select className="input-soft" value={custom ? 'custom' : String(value)} onChange={(e) => pick(e.target.value)}>
         <option value={30}>30 天</option>
-        <option value={42}>一个版本 · 42 天</option>
+        <option value={42}>42 天</option>
         <option value="custom">自定义天数…</option>
       </select>
       {custom && (
@@ -300,6 +301,37 @@ function PauseIcon() {
       <line x1="9" y1="5" x2="9" y2="19" />
       <line x1="15" y1="5" x2="15" y2="19" />
     </svg>
+  );
+}
+
+/* ---------- 游戏版本更新：与老板的托管周期相互独立 ---------- */
+function VersionResetCard() {
+  const { data, resetVersionProgress } = useStore();
+  const activeCount = data.bosses.filter((b) => cycleEndDate(b) >= todayStr()).length;
+
+  const reset = () => {
+    if (activeCount === 0) return;
+    const ok = confirm(
+      `确定进行版本更新重置吗？\n\n将影响 ${activeCount} 位当前仍在托管的老板（包括版本中途加入的老板）。\n会重置：大活动、小活动、全息、兑换码、抽卡道具。\n会保留：日常、周常、海墟、深塔、矩阵。`
+    );
+    if (ok) resetVersionProgress();
+  };
+
+  return (
+    <div className="paper-card flex items-center gap-4 px-5 py-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: '#efe9fb', color: '#7c5cc9' }}>
+        <RotateCcw size={18} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold" style={{ color: '#22405c' }}>游戏版本更新</p>
+        <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: '#8aa2b8' }}>
+          版本日期不固定，由你更新当天手动重置版本任务
+        </p>
+      </div>
+      <button type="button" disabled={activeCount === 0} onClick={reset} className="btn-ghost !px-4 !py-2 text-xs shrink-0">
+        重置 {activeCount} 位
+      </button>
+    </div>
   );
 }
 
@@ -370,7 +402,7 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
     passcode: '',
     tier: 4 as Boss['tier'],
     cycleDays: 30 as number,
-    startDate: new Date().toISOString().slice(0, 10),
+    startDate: todayStr(),
   });
   // 手动改过口令后，不再用手机号自动覆盖
   const [codeTouched, setCodeTouched] = useState(false);

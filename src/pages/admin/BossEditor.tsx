@@ -25,10 +25,13 @@ export default function BossEditor({ boss }: Props) {
     }));
 
   const toggleWeek = (i: number) =>
-    mutateBoss(boss.id, (b) => ({
-      ...b,
-      weekly: b.weekly.includes(i) ? b.weekly.filter((w) => w !== i) : [...b.weekly, i].sort((a, z) => a - z),
-    }));
+    mutateBoss(boss.id, (b) => {
+      const key = weekRange(b, i).from;
+      return {
+        ...b,
+        weekly: b.weekly.includes(key) ? b.weekly.filter((w) => w !== key) : [...b.weekly, key].sort(),
+      };
+    });
 
   const setChallenge = (key: 'matrix' | 'sea' | 'tower' | 'holo', patch: Partial<{ enabled: boolean; done: boolean }>) =>
     mutateBoss(boss.id, (b) => ({ ...b, challenges: { ...b.challenges, [key]: { ...b.challenges[key], ...patch } } }));
@@ -37,29 +40,30 @@ export default function BossEditor({ boss }: Props) {
   const todayDone = boss.daily.includes(today);
   const weeks = cycleWeeks(boss);
   const curWeekIdx = currentWeekIndex(boss);
-  const weekDone = curWeekIdx >= 0 && boss.weekly.includes(curWeekIdx);
+  const currentWeekKey = curWeekIdx >= 0 ? weekRange(boss, curWeekIdx).from : '';
+  const weekDone = !!currentWeekKey && boss.weekly.includes(currentWeekKey);
   const ended = today > addDays(boss.startDate, boss.cycleDays - 1);
 
   return (
     <div className="space-y-5">
-      {/* 已到期提示 + 一键续期 */}
+      {/* 已到期提示 + 同版本续期 */}
       {ended && (
         <div className="paper-card flex flex-wrap items-center gap-3 px-6 py-5" style={{ background: 'rgba(250,246,255,0.92)', borderColor: '#e2d5f8' }}>
           <div className="mr-auto">
             <p className="font-display text-lg" style={{ color: '#5b3f8f' }}>本周期已到期</p>
-            <p className="text-xs" style={{ color: '#9a86bd' }}>老板续费了就点右边按钮，从今天开始一个新周期，勾选记录会自动清零（活动名称和图片保留）</p>
+            <p className="text-xs" style={{ color: '#9a86bd' }}>同一版本内续费时，从今天开始新的日常周期；只清空日常打卡，本周周常、活动和挑战状态全部保留</p>
           </div>
           <button
             type="button"
             className="btn-primary"
             style={{ background: 'linear-gradient(135deg,#a78bfa,#7c5cc9)', boxShadow: '0 8px 24px -8px rgba(124,92,201,0.55)' }}
             onClick={() => {
-              if (confirm(`确定从 today 开始为「${boss.name}」开一个新周期吗？当前周期的打卡和活动完成状态会清零。`.replace('today', fmtCN(today)))) {
+              if (confirm(`确定从 today 开始为「${boss.name}」续期吗？只会清空日常打卡，本周周常、活动和挑战状态都会保留。`.replace('today', fmtCN(today)))) {
                 renewBoss(boss.id);
               }
             }}
           >
-            <RotateCcw size={16} /> 一键续期（{fmtCN(today)} 起）
+            <RotateCcw size={16} /> 同版本续期（{fmtCN(today)} 起）
           </button>
         </div>
       )}
@@ -68,7 +72,7 @@ export default function BossEditor({ boss }: Props) {
       <div className="paper-card flex flex-wrap items-center gap-3 px-6 py-5">
         <div className="mr-auto">
           <p className="font-display text-lg" style={{ color: '#22405c' }}>今日快捷登记</p>
-          <p className="text-xs" style={{ color: '#8aa2b8' }}>每天点这两下就完事，老板立刻能看到</p>
+          <p className="text-xs" style={{ color: '#8aa2b8' }}>每天点这两下就完事；每日记录按北京时间凌晨 4 点刷新</p>
         </div>
         <button
           type="button"
@@ -157,8 +161,8 @@ export default function BossEditor({ boss }: Props) {
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {Array.from({ length: weeks }, (_, i) => {
-              const done = boss.weekly.includes(i);
               const range = weekRange(boss, i);
+              const done = boss.weekly.includes(range.from);
               return (
                 <button
                   key={i}
@@ -379,7 +383,7 @@ function CycleDaysPicker({ value, onChange }: { value: number; onChange: (days: 
     <div className="flex gap-2">
       <select className="input-soft" value={custom ? 'custom' : String(value)} onChange={(e) => pick(e.target.value)}>
         <option value={30}>30 天</option>
-        <option value={42}>一个版本 · 42 天</option>
+        <option value={42}>42 天</option>
         <option value="custom">自定义天数</option>
       </select>
       {custom && (

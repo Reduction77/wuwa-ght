@@ -28,8 +28,8 @@ export interface Boss {
   note: string;
   /** 已清体力的日期 YYYY-MM-DD 列表 */
   daily: string[];
-  /** 已清周常的“周期内第几周”序号（0 起） */
-  weekly: number[];
+  /** 已清周常所在日历周的周一日期（YYYY-MM-DD），不随老板续期错位 */
+  weekly: string[];
   bigEvent: EventItem;
   smallEvents: EventItem[];
   /** 高难挑战：开了老板才看得见 */

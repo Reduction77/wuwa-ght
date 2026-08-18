@@ -15,6 +15,7 @@ import {
   saveAdminKey,
   writeServerData,
 } from '@/lib/server';
+import { addDays, cycleEndDate, todayStr } from '@/lib/dates';
 
 const LOCAL_KEY = 'zzbb-local-data';
 
@@ -41,8 +42,10 @@ interface Store {
   removeBoss: (id: string) => void;
   save: () => Promise<void>;
   reload: () => Promise<void>;
-  /** 续期：从今天开始新周期，清空本周期所有完成记录（保留套餐、名称、图片设置） */
+  /** 同版本续期：从当前游戏日开始新的日常周期，只清空日常记录 */
   renewBoss: (id: string) => void;
+  /** 版本更新：重置进行中老板的版本任务，保留日常、周常、海墟、深塔、矩阵 */
+  resetVersionProgress: () => void;
   /** 一键切换接单状态（首页顶部徽章） */
   setAccepting: (on: boolean) => void;
   /** 整包替换数据（从本地备份恢复时用） */
@@ -72,6 +75,18 @@ function normalize(data: SiteData): SiteData {
     },
     bosses: ((data.bosses ?? []) as PB[]).map((b) => {
       const ch = (b.challenges ?? {}) as Record<string, unknown>;
+      const startDate = b.startDate ?? todayStr();
+      const start = new Date(startDate + 'T00:00:00');
+      const startDow = (start.getDay() + 6) % 7;
+      const weekly = ((b.weekly ?? []) as unknown[])
+        .map((w) => {
+          // 兼容旧数据：旧格式保存的是“周期内第几周”的数字序号。
+          if (typeof w === 'number' && Number.isInteger(w) && w >= 0) {
+            return addDays(startDate, -startDow + w * 7);
+          }
+          return typeof w === 'string' ? w : '';
+        })
+        .filter(Boolean);
       // 全托老板默认把深塔海墟矩阵全息打开，其它套餐默认关
       const full = b.tier === 4;
       return {
@@ -81,10 +96,10 @@ function normalize(data: SiteData): SiteData {
         passcode: b.passcode ?? '0000',
         tier: b.tier ?? 4,
         cycleDays: b.cycleDays ?? 30,
-        startDate: b.startDate ?? new Date().toISOString().slice(0, 10),
+        startDate,
         note: b.note ?? '',
         daily: b.daily ?? [],
-        weekly: b.weekly ?? [],
+        weekly: [...new Set(weekly)].sort(),
         bigEvent: { name: '版本大活动', image: '', done: false, ...(b.bigEvent ?? {}) },
         smallEvents: ((b.smallEvents ?? []) as Array<Partial<Boss['smallEvents'][number]>>).map((e) => ({ name: '', image: '', done: false, ...e })),
         challenges: {
@@ -221,28 +236,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const renewBoss = useCallback(
     (id: string) => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayStr();
       mutateBoss(id, (b) => ({
         ...b,
         startDate: today,
         daily: [],
-        weekly: [],
+      }));
+    },
+    [mutateBoss]
+  );
+
+  const resetVersionProgress = useCallback(() => {
+    const cur = dataRef.current;
+    const today = todayStr();
+    const bosses = cur.bosses.map((b) => {
+      // 已到期的老板不参与新版本，避免改动其留存数据。
+      if (cycleEndDate(b) < today) return b;
+      return {
+        ...b,
         bigEvent: { ...b.bigEvent, done: false },
         smallEvents: b.smallEvents.map((e) => ({ ...e, done: false })),
         challenges: {
-          matrix: { ...b.challenges.matrix, done: false },
-          sea: { ...b.challenges.sea, done: false },
-          tower: { ...b.challenges.tower, done: false },
+          ...b.challenges,
           holo: { ...b.challenges.holo, done: false },
         },
         optionals: {
           redeem: { ...b.optionals.redeem, done: false },
           gacha: { ...b.optionals.gacha, done: false },
         },
-      }));
-    },
-    [mutateBoss]
-  );
+      };
+    });
+    touch({ ...cur, bosses });
+  }, [touch]);
 
   const setGithub = useCallback((c: GithubConfig | null) => {
     saveGithubConfig(c);
@@ -325,6 +350,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       updateBoss,
       mutateBoss,
       renewBoss,
+      resetVersionProgress,
       setAccepting,
       importData,
       syncEventMeta,
@@ -333,7 +359,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       save,
       reload,
     }),
-    [data, loading, dirty, saveState, saveError, github, serverMode, adminKey, source, setGithub, setAdminKey, updateBoss, mutateBoss, renewBoss, setAccepting, importData, syncEventMeta, addBoss, removeBoss, save, reload]
+    [data, loading, dirty, saveState, saveError, github, serverMode, adminKey, source, setGithub, setAdminKey, updateBoss, mutateBoss, renewBoss, resetVersionProgress, setAccepting, importData, syncEventMeta, addBoss, removeBoss, save, reload]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
@@ -353,7 +379,7 @@ export function emptyBoss(id: string): Boss {
     passcode: String(Math.floor(1000 + Math.random() * 9000)),
     tier: 4,
     cycleDays: 30,
-    startDate: new Date().toISOString().slice(0, 10),
+    startDate: todayStr(),
     note: '',
     daily: [],
     weekly: [],

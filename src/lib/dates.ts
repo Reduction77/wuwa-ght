@@ -1,8 +1,19 @@
 import type { Boss } from '@/types';
 
-export function todayStr(): string {
-  const d = new Date();
-  return toDateStr(d);
+/**
+ * 鸣潮的“今天”：每日凌晨 4:00 才切换到下一天。
+ * 例如 8 月 20 日 03:59 仍算 8 月 19 日，04:00 起才算 8 月 20 日。
+ */
+export function todayStr(now = new Date()): string {
+  const shifted = new Date(now.getTime() - 4 * 60 * 60 * 1000);
+  const parts = new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(shifted);
+  const value = (type: 'year' | 'month' | 'day') => parts.find((p) => p.type === type)?.value ?? '';
+  return `${value('year')}-${value('month')}-${value('day')}`;
 }
 
 export function toDateStr(d: Date): string {
@@ -86,7 +97,8 @@ export function bossStats(b: Boss): BossStats {
   const dailyElapsed = dayNow;
   const dailyDone = b.daily.length;
   const weeksTotal = cycleWeeks(b);
-  const weeklyDone = b.weekly.length;
+  const visibleWeekKeys = new Set(Array.from({ length: weeksTotal }, (_, i) => weekRange(b, i).from));
+  const weeklyDone = b.weekly.filter((key) => visibleWeekKeys.has(key)).length;
 
   let tasksDone = 0;
   let tasksTotal = 0;

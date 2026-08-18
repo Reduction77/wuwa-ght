@@ -33,7 +33,7 @@ export default function BossProgress({ boss }: Props) {
               {TIER_LABEL[boss.tier]}
             </span>
             <span className="chip" style={{ background: '#eef9f3', color: '#1d9e74' }}>
-              {boss.cycleDays === 42 ? '一个版本 · 42天' : boss.cycleDays === 30 ? '30天周期' : `${boss.cycleDays}天周期`}
+              {boss.cycleDays === 42 ? '42天周期' : boss.cycleDays === 30 ? '30天周期' : `${boss.cycleDays}天周期`}
             </span>
             {ended && (
               <span className="chip" style={{ background: '#efe9fb', color: '#7c5cc9' }}>本周期已结束</span>
@@ -57,7 +57,7 @@ export default function BossProgress({ boss }: Props) {
           <SectionHead
             icon={<BatteryCharging size={20} />}
             title="每日体力"
-            desc={`每天清一次 · 已完成 ${stats.dailyDone} / ${boss.cycleDays} 天`}
+            desc={`每天清一次（凌晨4点刷新）· 已完成 ${stats.dailyDone} / ${boss.cycleDays} 天`}
           />
           <MiniBar percent={(stats.dailyDone / boss.cycleDays) * 100} />
           <div className="mt-4">
@@ -77,8 +77,8 @@ export default function BossProgress({ boss }: Props) {
           <MiniBar percent={(stats.weeklyDone / weeks) * 100} />
           <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {Array.from({ length: weeks }, (_, i) => {
-              const done = boss.weekly.includes(i);
               const range = weekRange(boss, i);
+              const done = boss.weekly.includes(range.from);
               const isCur = i === curWeek && !ended;
               return (
                 <div
