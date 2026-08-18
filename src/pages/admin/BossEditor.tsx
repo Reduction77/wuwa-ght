@@ -30,8 +30,8 @@ export default function BossEditor({ boss }: Props) {
       weekly: b.weekly.includes(i) ? b.weekly.filter((w) => w !== i) : [...b.weekly, i].sort((a, z) => a - z),
     }));
 
-  const toggleChallenge = (key: 'matrix' | 'sea' | 'tower') =>
-    mutateBoss(boss.id, (b) => ({ ...b, challenges: { ...b.challenges, [key]: !b.challenges[key] } }));
+  const setChallenge = (key: 'matrix' | 'sea' | 'tower' | 'holo', patch: Partial<{ enabled: boolean; done: boolean }>) =>
+    mutateBoss(boss.id, (b) => ({ ...b, challenges: { ...b.challenges, [key]: { ...b.challenges[key], ...patch } } }));
 
   const today = todayStr();
   const todayDone = boss.daily.includes(today);
@@ -108,9 +108,9 @@ export default function BossEditor({ boss }: Props) {
             <select className="input-soft" value={boss.tier} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, tier: Number(e.target.value) as Boss['tier'] }))}>
               <option value={1}>日体（3r/天）</option>
               <option value={2}>日体 + 周常（90r/月）</option>
-              <option value={3}>日体 + 周常 + 大活动（130r/月）</option>
+              <option value={3}>日体 + 周常 + 大活动（145r/月）</option>
               <option value={4}>全托（235r/月）</option>
-              <option value={5}>舰长（日体 + 周常 + 大活动 · 30天）</option>
+              <option value={5}>舰长（日体 + 周常 + 高难 · 30天）</option>
             </select>
           </Field>
           <Field label="托管周期">
@@ -130,8 +130,16 @@ export default function BossEditor({ boss }: Props) {
 
       {/* 每日体力 */}
       <section className="paper-card px-6 py-6">
-        <h3 className="font-display text-lg" style={{ color: '#22405c' }}>每日体力登记</h3>
-        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>点格子即可补登 / 撤销，蓝色 = 已清</p>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="font-display text-lg" style={{ color: '#22405c' }}>每日体力登记</h3>
+            <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>点格子即可补登 / 撤销，蓝色 = 已清</p>
+          </div>
+          <ShowSwitch
+            on={boss.show.daily}
+            onChange={(v) => mutateBoss(boss.id, (b) => ({ ...b, show: { ...b.show, daily: v } }))}
+          />
+        </div>
         <div className="mt-4">
           <DayGrid boss={boss} editable onToggleDay={toggleDaily} />
         </div>
@@ -140,7 +148,13 @@ export default function BossEditor({ boss }: Props) {
       {/* 周常 */}
       {boss.tier >= 2 && (
         <section className="paper-card px-6 py-6">
-          <h3 className="font-display text-lg" style={{ color: '#22405c' }}>每周周常登记</h3>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="font-display text-lg" style={{ color: '#22405c' }}>每周周常登记</h3>
+            <ShowSwitch
+              on={boss.show.weekly}
+              onChange={(v) => mutateBoss(boss.id, (b) => ({ ...b, show: { ...b.show, weekly: v } }))}
+            />
+          </div>
           <div className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
             {Array.from({ length: weeks }, (_, i) => {
               const done = boss.weekly.includes(i);
@@ -171,8 +185,16 @@ export default function BossEditor({ boss }: Props) {
       {/* 活动 */}
       {boss.tier >= 3 && (
         <section className="paper-card px-6 py-6">
-          <h3 className="font-display text-lg" style={{ color: '#22405c' }}>版本活动登记</h3>
-          <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>点「编辑」可改活动名称和图片；不上传图片时老板端不会留空白框</p>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h3 className="font-display text-lg" style={{ color: '#22405c' }}>版本活动登记</h3>
+              <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>点「编辑」可改活动名称和图片；不上传图片时老板端不会留空白框</p>
+            </div>
+            <ShowSwitch
+              on={boss.show.bigEvent}
+              onChange={(v) => mutateBoss(boss.id, (b) => ({ ...b, show: { ...b.show, bigEvent: v } }))}
+            />
+          </div>
           <div className="mt-4 space-y-3">
             <EventCard event={boss.bigEvent} badge="版本大活动" editable onToggle={() => mutateBoss(boss.id, (b) => ({ ...b, bigEvent: { ...b.bigEvent, done: !b.bigEvent.done } }))} onEdit={() => setEventEdit({ kind: 'big' })} />
             {boss.tier === 4 && (
@@ -199,17 +221,41 @@ export default function BossEditor({ boss }: Props) {
         </section>
       )}
 
-      {/* 挑战 */}
-      {boss.tier === 4 && (
-        <section className="paper-card px-6 py-6">
-          <h3 className="font-display text-lg" style={{ color: '#22405c' }}>周期挑战登记</h3>
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <ToggleRow label="终焉矩阵" done={boss.challenges.matrix} onClick={() => toggleChallenge('matrix')} />
-            <ToggleRow label="冥歌海城" done={boss.challenges.sea} onClick={() => toggleChallenge('sea')} />
-            <ToggleRow label="逆境深塔" done={boss.challenges.tower} onClick={() => toggleChallenge('tower')} />
-          </div>
-        </section>
-      )}
+      {/* 高难挑战：开启后老板才看得见 */}
+      <section className="paper-card px-6 py-6">
+        <h3 className="font-display text-lg" style={{ color: '#22405c' }}>高难挑战登记</h3>
+        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>深塔 / 海墟 / 矩阵 / 全息，开启后才会显示在老板的进度页上</p>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <OptionalRow
+            label="终焉矩阵"
+            enabled={boss.challenges.matrix.enabled}
+            done={boss.challenges.matrix.done}
+            onEnable={(v) => setChallenge('matrix', { enabled: v })}
+            onToggle={() => setChallenge('matrix', { done: !boss.challenges.matrix.done })}
+          />
+          <OptionalRow
+            label="冥歌海墟"
+            enabled={boss.challenges.sea.enabled}
+            done={boss.challenges.sea.done}
+            onEnable={(v) => setChallenge('sea', { enabled: v })}
+            onToggle={() => setChallenge('sea', { done: !boss.challenges.sea.done })}
+          />
+          <OptionalRow
+            label="逆境深塔"
+            enabled={boss.challenges.tower.enabled}
+            done={boss.challenges.tower.done}
+            onEnable={(v) => setChallenge('tower', { enabled: v })}
+            onToggle={() => setChallenge('tower', { done: !boss.challenges.tower.done })}
+          />
+          <OptionalRow
+            label="全息投影"
+            enabled={boss.challenges.holo.enabled}
+            done={boss.challenges.holo.done}
+            onEnable={(v) => setChallenge('holo', { enabled: v })}
+            onToggle={() => setChallenge('holo', { done: !boss.challenges.holo.done })}
+          />
+        </div>
+      </section>
 
       {/* 可选任务 */}
       <section className="paper-card px-6 py-6">
@@ -255,17 +301,26 @@ function Field({ label, children, className }: { label: string; children: React.
   );
 }
 
-function ToggleRow({ label, done, onClick }: { label: string; done: boolean; onClick: () => void }) {
+/** 老板端「显示 / 隐藏这个模块」的小开关 */
+function ShowSwitch({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      className="flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
-      style={done ? { background: '#eef9f3', borderColor: '#bfe9d8' } : { background: '#fff', borderColor: '#d9e9f9' }}
+      onClick={() => onChange(!on)}
+      className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition-all duration-300"
+      style={on ? { background: '#e7f3ff', borderColor: '#b8d8f5', color: '#2a7fd4' } : { background: '#f6fafe', borderColor: '#e3effc', color: '#9db4c9' }}
+      title={on ? '老板端现在能看见，点我隐藏' : '老板端现在看不见，点我显示'}
     >
-      {done ? <CheckCircle2 className="check-pop shrink-0 text-[#2fbf8f]" size={24} /> : <Circle className="shrink-0 text-[#b9d2e8]" size={24} />}
-      <span className={`flex-1 font-bold ${done ? 'text-[#1d9e74]' : 'text-[#2b3f54]'}`}>{label}</span>
-      <span className="text-xs font-semibold" style={{ color: '#8aa2b8' }}>{done ? '已完成' : '点我完成'}</span>
+      <span
+        className="relative h-4 w-7 rounded-full transition-colors duration-300"
+        style={{ background: on ? '#45a9ff' : '#cfdff0' }}
+      >
+        <span
+          className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all duration-300"
+          style={{ left: on ? '14px' : '2px' }}
+        />
+      </span>
+      {on ? '老板可见' : '老板不可见'}
     </button>
   );
 }

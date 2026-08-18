@@ -76,7 +76,7 @@ docker compose up -d   # 先改 docker-compose.yml 里的 ADMIN_PASSWORD
 
 ```bash
 docker build -t wuwa-ght .
-docker run -d --name wuwa-ght -p 80:80 \
+docker run -d --name wuwa-ght -p 130:130 \
   -e ADMIN_PASSWORD=换成你自己的管理密码 \
   -v wuwa-data:/data \
   wuwa-ght

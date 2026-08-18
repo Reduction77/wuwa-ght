@@ -5,10 +5,11 @@
  * - PUT  /api/data           保存托管数据（需管理密码）
  * - GET  /api/check          校验管理密码
  * - POST /api/upload         上传活动图片（需管理密码，存服务器本地）
+ * - POST /api/passcode       老板自助改口令（凭旧口令验证，只改自己的，不需要管理密码）
  * - GET  /api/uploads/*      读取已上传图片
  *
  * 环境变量：
- *   PORT           监听端口（默认 80）
+ *   PORT           监听端口（默认 130）
  *   DATA_DIR       数据目录（默认 ./data；Docker 里挂 /data 卷即可持久化）
  *   ADMIN_PASSWORD 后台管理密码（默认 admin888，务必修改！）
  */
@@ -19,7 +20,7 @@ const path = require('node:path');
 const zlib = require('node:zlib');
 const crypto = require('node:crypto');
 
-const PORT = Number(process.env.PORT || 80);
+const PORT = Number(process.env.PORT || 130);
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin888';
 const DIST = path.join(__dirname, 'dist');
@@ -105,6 +106,22 @@ const server = http.createServer(async (req, res) => {
       const parsed = JSON.parse(body.toString('utf8'));
       if (!parsed || !Array.isArray(parsed.bosses)) return sendJson(res, 400, { ok: false, error: '数据格式不正确' });
       fs.writeFileSync(DATA_FILE, JSON.stringify(parsed, null, 1));
+      sendJson(res, 200, { ok: true });
+      return;
+    }
+    if (pathname === '/api/passcode' && req.method === 'POST') {
+      const body = JSON.parse((await readBody(req)).toString('utf8'));
+      const id = String(body.id || '');
+      const oldCode = String(body.oldPasscode || '').trim();
+      const newCode = String(body.newPasscode || '').trim();
+      if (!id || !oldCode || !newCode) return sendJson(res, 400, { ok: false, error: '参数不完整' });
+      if (newCode.length < 4 || newCode.length > 16) return sendJson(res, 400, { ok: false, error: '新口令要 4-16 位' });
+      const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+      const boss = (data.bosses || []).find((b) => b.id === id);
+      if (!boss) return sendJson(res, 404, { ok: false, error: '找不到这位老板' });
+      if (boss.passcode !== oldCode) return sendJson(res, 403, { ok: false, error: '旧口令不对' });
+      boss.passcode = newCode;
+      fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 1));
       sendJson(res, 200, { ok: true });
       return;
     }

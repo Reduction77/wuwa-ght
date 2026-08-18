@@ -7,13 +7,19 @@ export interface EventItem {
   done: boolean;
 }
 
+/** 可开关 + 完成状态 的小项（开了老板才看得见） */
+export interface ToggleItem {
+  enabled: boolean;
+  done: boolean;
+}
+
 export interface Boss {
   id: string;
   name: string;
   account: string;
   /** 老板查看口令 */
   passcode: string;
-  /** 1 日体 | 2 日体+周常 | 3 日体+周常+大活动 | 4 全托 | 5 舰长（日体+周常+大活动） */
+  /** 1 日体 | 2 日体+周常 | 3 日体+周常+大活动 | 4 全托 | 5 舰长（日体+周常+高难） */
   tier: PackageTier;
   /** 周期天数：默认 30，一个版本 42，也可自定义任意天数 */
   cycleDays: number;
@@ -26,10 +32,17 @@ export interface Boss {
   weekly: number[];
   bigEvent: EventItem;
   smallEvents: EventItem[];
-  challenges: { matrix: boolean; sea: boolean; tower: boolean };
+  /** 高难挑战：开了老板才看得见 */
+  challenges: { matrix: ToggleItem; sea: ToggleItem; tower: ToggleItem; holo: ToggleItem };
   optionals: {
-    redeem: { enabled: boolean; done: boolean };
-    gacha: { enabled: boolean; done: boolean };
+    redeem: ToggleItem;
+    gacha: ToggleItem;
+  };
+  /** 老板端各模块可见开关：开了老板才能看见，不开看不见 */
+  show: {
+    daily: boolean;
+    weekly: boolean;
+    bigEvent: boolean;
   };
 }
 
@@ -55,7 +68,7 @@ export const TIER_LABEL: Record<PackageTier, string> = {
 export const TIER_PRICE: Record<PackageTier, string> = {
   1: '3r / 天',
   2: '90r / 月',
-  3: '130r / 月',
+  3: '145r / 月',
   4: '235r / 月',
   5: '舰长专属',
 };

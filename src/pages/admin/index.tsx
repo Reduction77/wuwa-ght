@@ -366,21 +366,37 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
   const [form, setForm] = useState({
     name: '',
     account: '',
-    tail: '',
+    phone: '',
+    passcode: '',
     tier: 4 as Boss['tier'],
     cycleDays: 30 as number,
     startDate: new Date().toISOString().slice(0, 10),
   });
+  // 手动改过口令后，不再用手机号自动覆盖
+  const [codeTouched, setCodeTouched] = useState(false);
 
-  const tailClean = form.tail.replace(/\D/g, '').slice(-4);
-  const passcode = tailClean.length === 4 ? makePasscode(tailClean, data.bosses) : '';
-  const duplicated = passcode.length > 4;
-  const canCreate = form.name.trim() && tailClean.length === 4 && form.startDate;
+  const phoneDigits = form.phone.replace(/\D/g, '');
+  const tail4 = phoneDigits.slice(-4);
+  const autoCode = tail4.length === 4 ? makePasscode(tail4, data.bosses) : '';
+  const passcode = form.passcode.trim();
+  const autoDuplicated = !codeTouched && autoCode.length > 4;
+  const manualDuplicated = !!passcode && data.bosses.some((b) => b.passcode === passcode);
+  const canCreate = form.name.trim() && passcode.length >= 4 && form.startDate;
+
+  const onPhoneChange = (v: string) => {
+    const digits = v.replace(/\D/g, '').slice(0, 11);
+    const tail = digits.slice(-4);
+    setForm({
+      ...form,
+      phone: digits,
+      passcode: !codeTouched && tail.length === 4 ? makePasscode(tail, data.bosses) : form.passcode,
+    });
+  };
 
   const create = () => {
     const b = emptyBoss(`boss-${Date.now()}`);
     b.name = form.name.trim();
-    b.account = form.account.trim();
+    b.account = form.account.trim() || (phoneDigits ? phoneDigits.replace(/^(\d{3})\d{4}(\d{4})$/, '$1……$2') : '');
     b.passcode = passcode;
     b.tier = form.tier;
     b.cycleDays = form.cycleDays;
@@ -407,25 +423,45 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
           </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>账号（可打码，可空）</span>
-            <input className="input-soft" placeholder="例如 138……0001" value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} />
+            <input className="input-soft" placeholder="留空会自动用手机号打码" value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>老板手机号后四位 *（自动生成登录口令）</span>
+            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>老板手机号 *（自动取后四位生成口令）</span>
+            <input
+              className="input-soft font-bold tracking-[0.15em]"
+              placeholder="11 位手机号"
+              maxLength={11}
+              inputMode="numeric"
+              value={form.phone}
+              onChange={(e) => onPhoneChange(e.target.value)}
+            />
+          </label>
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>
+              登录口令 *（已按手机号后四位自动填好，可以直接改）
+            </span>
             <input
               className="input-soft font-bold tracking-[0.3em]"
-              placeholder="后四位"
-              maxLength={4}
-              inputMode="numeric"
-              value={form.tail}
-              onChange={(e) => setForm({ ...form, tail: e.target.value.replace(/\D/g, '') })}
+              placeholder="4~16 位"
+              maxLength={16}
+              value={form.passcode}
+              onChange={(e) => {
+                setCodeTouched(true);
+                setForm({ ...form, passcode: e.target.value.trim() });
+              }}
             />
-            {duplicated && (
+            {autoDuplicated && (
               <span className="mt-1.5 block text-xs font-semibold" style={{ color: '#d18d1f' }}>
-                后四位和别的老板重复了，口令自动变成「{passcode}」——记得告诉这位老板
+                后四位和别的老板重复了，口令自动补位成「{autoCode}」——记得告诉这位老板
+              </span>
+            )}
+            {manualDuplicated && (
+              <span className="mt-1.5 block text-xs font-semibold" style={{ color: '#d18d1f' }}>
+                这个口令和现有老板重复了，建议换一个，不然两位老板会撞车
               </span>
             )}
             <span className="mt-1.5 block text-[11px]" style={{ color: '#9db4c9' }}>
-              老板想自定义口令的话，创建后在后台「查看口令」一栏直接改
+              老板自己也能在进度页改口令（服务器版会自动同步到你这边）
             </span>
           </label>
           <div className="grid grid-cols-2 gap-3">
@@ -437,9 +473,9 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
               }}>
                 <option value={1}>日体（3r/天）</option>
                 <option value={2}>日体 + 周常（90r/月）</option>
-                <option value={3}>日体 + 周常 + 大活动（130r/月）</option>
+                <option value={3}>日体 + 周常 + 大活动（145r/月）</option>
                 <option value={4}>全托（235r/月）</option>
-                <option value={5}>舰长（日体 + 周常 + 大活动 · 30天）</option>
+                <option value={5}>舰长（日体 + 周常 + 高难 · 30天）</option>
               </select>
             </label>
             <label className="block">

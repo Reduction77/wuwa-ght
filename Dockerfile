@@ -21,7 +21,7 @@ RUN node node_modules/typescript/lib/tsc.js -b && node node_modules/vite/bin/vit
 FROM node:20-alpine
 WORKDIR /app
 ENV NODE_ENV=production \
-    PORT=80 \
+    PORT=130 \
     DATA_DIR=/data
 # ADMIN_PASSWORD 请在 docker run 时用 -e 覆盖，不要用默认值上线
 

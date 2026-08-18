@@ -47,6 +47,17 @@ export async function writeServerData(key: string, json: string): Promise<void> 
   }
 }
 
+/** 老板自助改口令：凭旧口令验证，只改自己的，不需要管理密码 */
+export async function changePasscode(id: string, oldPasscode: string, newPasscode: string): Promise<void> {
+  const res = await fetch('/api/passcode', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, oldPasscode, newPasscode }),
+  });
+  const json = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(json?.error || '改口令失败');
+}
+
 /** 上传活动图片到服务器，返回可访问的 URL */
 export async function uploadServerImage(key: string, file: File): Promise<string> {
   const dataUrl = await downscaleToDataUrl(file, 1280);

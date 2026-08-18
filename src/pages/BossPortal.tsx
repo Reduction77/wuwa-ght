@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useStore } from '@/lib/store';
+import { changePasscode } from '@/lib/server';
 import { siteConfig } from '@/siteConfig';
 import BossProgress from '@/components/BossProgress';
+import type { Boss } from '@/types';
 import { ArrowLeft, KeyRound, LogOut, RefreshCw } from 'lucide-react';
 
 interface Props {
@@ -60,6 +62,14 @@ export default function BossPortal({ onBack }: Props) {
           </div>
         </header>
         <BossProgress boss={boss} />
+        <ChangePasscodeCard
+          boss={boss}
+          onChanged={() => {
+            sessionStorage.removeItem(SESSION_KEY);
+            setBossId(null);
+            setCode('');
+          }}
+        />
         <p className="mt-8 text-center text-xs" style={{ color: '#9db4c9' }}>
           数据更新于 {new Date(data.updatedAt).toLocaleString('zh-CN')} · 有疑问随时<WeChatTip />戳我
         </p>
@@ -106,6 +116,119 @@ export default function BossPortal({ onBack }: Props) {
           <ArrowLeft size={12} className="mr-1 inline" />返回首页
         </button>
       </div>
+    </div>
+  );
+}
+
+/** 修改口令卡片：服务器版直接改并同步到后台；纯静态版提示找托管小哥 */
+function ChangePasscodeCard({ boss, onChanged }: { boss: Boss; onChanged: () => void }) {
+  const { serverMode, reload } = useStore();
+  const [open, setOpen] = useState(false);
+  const [oldCode, setOldCode] = useState('');
+  const [newCode, setNewCode] = useState('');
+  const [newCode2, setNewCode2] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const submit = async () => {
+    const n1 = newCode.trim();
+    if (n1.length < 4 || n1.length > 16) {
+      setMsg({ ok: false, text: '新口令要 4~16 位，别带空格' });
+      return;
+    }
+    if (n1 !== newCode2.trim()) {
+      setMsg({ ok: false, text: '两次输入的新口令不一样' });
+      return;
+    }
+    if (n1 === oldCode.trim()) {
+      setMsg({ ok: false, text: '新口令和旧口令一样，换个新的吧' });
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      await changePasscode(boss.id, oldCode.trim(), n1);
+      await reload();
+      setMsg({ ok: true, text: '口令改好啦！3 秒后退出，请用新口令重新登录' });
+      setTimeout(onChanged, 3000);
+    } catch (e) {
+      setMsg({ ok: false, text: e instanceof Error ? e.message : '改口令失败，稍后再试' });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="paper-card mt-6 px-5 py-4">
+      {!open ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex w-full items-center justify-center gap-2 text-xs font-bold"
+          style={{ color: '#2a7fd4' }}
+        >
+          <KeyRound size={14} /> 想换个好记的口令？点这里修改
+        </button>
+      ) : !serverMode ? (
+        <div className="text-center">
+          <p className="text-sm font-bold" style={{ color: '#22405c' }}>修改口令</p>
+          <p className="mt-2 text-xs leading-relaxed" style={{ color: '#7e96ad' }}>
+            这个版本改不了口令哦——想换口令的话<WeChatTip />跟我说一声，我帮你改好。
+          </p>
+          <button type="button" onClick={() => setOpen(false)} className="mt-3 text-xs font-semibold" style={{ color: '#8aa2b8' }}>
+            收起
+          </button>
+        </div>
+      ) : (
+        <div>
+          <p className="text-sm font-bold" style={{ color: '#22405c' }}>修改口令</p>
+          <p className="mt-1 text-[11px]" style={{ color: '#9db4c9' }}>
+            改好后这边和托管小哥的后台会同步生效，下次登录用新口令
+          </p>
+          <div className="mt-3 space-y-2.5">
+            <input
+              className="input-soft text-center font-bold tracking-[0.2em]"
+              placeholder="当前口令"
+              value={oldCode}
+              maxLength={16}
+              onChange={(e) => setOldCode(e.target.value)}
+            />
+            <input
+              className="input-soft text-center font-bold tracking-[0.2em]"
+              placeholder="新口令（4~16 位）"
+              value={newCode}
+              maxLength={16}
+              onChange={(e) => setNewCode(e.target.value)}
+            />
+            <input
+              className="input-soft text-center font-bold tracking-[0.2em]"
+              placeholder="再输一遍新口令"
+              value={newCode2}
+              maxLength={16}
+              onChange={(e) => setNewCode2(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !busy && submit()}
+            />
+          </div>
+          {msg && (
+            <p className="mt-2.5 text-center text-xs font-semibold" style={{ color: msg.ok ? '#1d9e74' : '#e05548' }}>
+              {msg.text}
+            </p>
+          )}
+          <div className="mt-3.5 flex justify-center gap-2">
+            <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={() => setOpen(false)}>
+              取消
+            </button>
+            <button
+              type="button"
+              disabled={busy || !oldCode.trim() || !newCode.trim()}
+              onClick={submit}
+              className="btn-primary !px-5 !py-2 text-xs"
+            >
+              {busy ? '提交中…' : '确认修改'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

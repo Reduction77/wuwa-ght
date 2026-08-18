@@ -90,17 +90,22 @@ export function bossStats(b: Boss): BossStats {
 
   let tasksDone = 0;
   let tasksTotal = 0;
-  if (b.tier >= 3) {
+  if (b.tier >= 3 && b.show.bigEvent) {
     tasksTotal += 1;
     if (b.bigEvent.done) tasksDone += 1;
   }
   if (b.tier === 4) {
-    tasksTotal += 3 + 3; // 小活动 + 矩阵/海城/深塔
+    tasksTotal += 3; // 小活动
     b.smallEvents.forEach((e) => e.done && tasksDone++);
-    if (b.challenges.matrix) tasksDone++;
-    if (b.challenges.sea) tasksDone++;
-    if (b.challenges.tower) tasksDone++;
   }
+  // 高难挑战按开启的单项计入
+  (['matrix', 'sea', 'tower', 'holo'] as const).forEach((k) => {
+    const c = b.challenges[k];
+    if (c.enabled) {
+      tasksTotal += 1;
+      if (c.done) tasksDone += 1;
+    }
+  });
   if (b.optionals.redeem.enabled) {
     tasksTotal += 1;
     if (b.optionals.redeem.done) tasksDone++;

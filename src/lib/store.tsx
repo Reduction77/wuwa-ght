@@ -54,7 +54,15 @@ interface Store {
 const Ctx = createContext<Store | null>(null);
 
 function normalize(data: SiteData): SiteData {
-  type PB = Partial<Boss> & { bigEvent?: Partial<Boss['bigEvent']>; challenges?: Partial<Boss['challenges']> };
+  type PB = Partial<Boss> & { bigEvent?: Partial<Boss['bigEvent']> };
+  // 兼容旧格式：challenges 的某项可能是 boolean（旧），也可能是 {enabled,done}（新）
+  const tog = (v: unknown, defaultEnabled: boolean): Boss['optionals']['redeem'] => {
+    if (v && typeof v === 'object') {
+      const o = v as { enabled?: boolean; done?: boolean };
+      return { enabled: o.enabled ?? defaultEnabled, done: o.done ?? false };
+    }
+    return { enabled: defaultEnabled, done: v === true };
+  };
   return {
     version: data.version ?? 1,
     updatedAt: data.updatedAt ?? new Date().toISOString(),
@@ -62,30 +70,45 @@ function normalize(data: SiteData): SiteData {
       on: data.accepting?.on ?? true,
       text: data.accepting?.text ?? '鸣潮 · 托管进行中',
     },
-    bosses: ((data.bosses ?? []) as PB[]).map((b) => ({
-      id: b.id ?? `boss-${Math.random().toString(36).slice(2, 9)}`,
-      name: b.name ?? '',
-      account: b.account ?? '',
-      passcode: b.passcode ?? '0000',
-      tier: b.tier ?? 4,
-      cycleDays: b.cycleDays ?? 30,
-      startDate: b.startDate ?? new Date().toISOString().slice(0, 10),
-      note: b.note ?? '',
-      daily: b.daily ?? [],
-      weekly: b.weekly ?? [],
-      bigEvent: { name: '版本大活动', image: '', done: false, ...(b.bigEvent ?? {}) },
-      smallEvents: ((b.smallEvents ?? []) as Array<Partial<Boss['smallEvents'][number]>>).map((e) => ({ name: '', image: '', done: false, ...e })),
-      challenges: { matrix: false, sea: false, tower: false, ...(b.challenges ?? {}) },
-      optionals: {
-        redeem: { enabled: false, done: false, ...(b.optionals?.redeem ?? {}) },
-        gacha: { enabled: false, done: false, ...(b.optionals?.gacha ?? {}) },
-      },
-    })),
+    bosses: ((data.bosses ?? []) as PB[]).map((b) => {
+      const ch = (b.challenges ?? {}) as Record<string, unknown>;
+      // 全托老板默认把深塔海墟矩阵全息打开，其它套餐默认关
+      const full = b.tier === 4;
+      return {
+        id: b.id ?? `boss-${Math.random().toString(36).slice(2, 9)}`,
+        name: b.name ?? '',
+        account: b.account ?? '',
+        passcode: b.passcode ?? '0000',
+        tier: b.tier ?? 4,
+        cycleDays: b.cycleDays ?? 30,
+        startDate: b.startDate ?? new Date().toISOString().slice(0, 10),
+        note: b.note ?? '',
+        daily: b.daily ?? [],
+        weekly: b.weekly ?? [],
+        bigEvent: { name: '版本大活动', image: '', done: false, ...(b.bigEvent ?? {}) },
+        smallEvents: ((b.smallEvents ?? []) as Array<Partial<Boss['smallEvents'][number]>>).map((e) => ({ name: '', image: '', done: false, ...e })),
+        challenges: {
+          matrix: tog(ch.matrix, full),
+          sea: tog(ch.sea, full),
+          tower: tog(ch.tower, full),
+          holo: tog(ch.holo, full),
+        },
+        optionals: {
+          redeem: tog(b.optionals?.redeem, false),
+          gacha: tog(b.optionals?.gacha, false),
+        },
+        show: {
+          daily: b.show?.daily ?? true,
+          weekly: b.show?.weekly ?? true,
+          bigEvent: b.show?.bigEvent ?? true,
+        },
+      };
+    }),
   };
 }
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<SiteData>(normalize(initialJson as SiteData));
+  const [data, setData] = useState<SiteData>(normalize(initialJson as unknown as SiteData));
   const [loading, setLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
   const [saveState, setSaveState] = useState<SaveState>('idle');
@@ -206,7 +229,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         weekly: [],
         bigEvent: { ...b.bigEvent, done: false },
         smallEvents: b.smallEvents.map((e) => ({ ...e, done: false })),
-        challenges: { matrix: false, sea: false, tower: false },
+        challenges: {
+          matrix: { ...b.challenges.matrix, done: false },
+          sea: { ...b.challenges.sea, done: false },
+          tower: { ...b.challenges.tower, done: false },
+          holo: { ...b.challenges.holo, done: false },
+        },
         optionals: {
           redeem: { ...b.optionals.redeem, done: false },
           gacha: { ...b.optionals.gacha, done: false },
@@ -335,11 +363,17 @@ export function emptyBoss(id: string): Boss {
       { name: '版本小活动②', image: '', done: false },
       { name: '版本小活动③', image: '', done: false },
     ],
-    challenges: { matrix: false, sea: false, tower: false },
+    challenges: {
+      matrix: { enabled: false, done: false },
+      sea: { enabled: false, done: false },
+      tower: { enabled: false, done: false },
+      holo: { enabled: false, done: false },
+    },
     optionals: {
       redeem: { enabled: false, done: false },
       gacha: { enabled: false, done: false },
     },
+    show: { daily: true, weekly: true, bigEvent: true },
   };
 }
 

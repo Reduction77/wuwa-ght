@@ -51,21 +51,23 @@ export default function BossProgress({ boss }: Props) {
         </div>
       </div>
 
-      {/* 每日体力 */}
-      <section className="paper-card rise-in rise-in-2 px-6 py-6">
-        <SectionHead
-          icon={<BatteryCharging size={20} />}
-          title="每日体力"
-          desc={`每天清一次 · 已完成 ${stats.dailyDone} / ${boss.cycleDays} 天`}
-        />
-        <MiniBar percent={(stats.dailyDone / boss.cycleDays) * 100} />
-        <div className="mt-4">
-          <DayGrid boss={boss} />
-        </div>
-      </section>
+      {/* 每日体力（开了才显示） */}
+      {boss.show.daily && (
+        <section className="paper-card rise-in rise-in-2 px-6 py-6">
+          <SectionHead
+            icon={<BatteryCharging size={20} />}
+            title="每日体力"
+            desc={`每天清一次 · 已完成 ${stats.dailyDone} / ${boss.cycleDays} 天`}
+          />
+          <MiniBar percent={(stats.dailyDone / boss.cycleDays) * 100} />
+          <div className="mt-4">
+            <DayGrid boss={boss} />
+          </div>
+        </section>
+      )}
 
-      {/* 每周周常 */}
-      {boss.tier >= 2 && (
+      {/* 每周周常（套餐含周常 且 开了才显示） */}
+      {boss.tier >= 2 && boss.show.weekly && (
         <section className="paper-card rise-in rise-in-3 px-6 py-6">
           <SectionHead
             icon={<CalendarCheck2 size={20} />}
@@ -104,8 +106,8 @@ export default function BossProgress({ boss }: Props) {
         </section>
       )}
 
-      {/* 版本活动 */}
-      {boss.tier >= 3 && (
+      {/* 版本活动（套餐含大活动 且 开了才显示） */}
+      {boss.tier >= 3 && boss.show.bigEvent && (
         <section className="paper-card rise-in rise-in-3 px-6 py-6">
           <SectionHead
             icon={<Sparkles size={20} />}
@@ -125,14 +127,15 @@ export default function BossProgress({ boss }: Props) {
         </section>
       )}
 
-      {/* 挑战任务 */}
-      {boss.tier === 4 && (
+      {/* 高难挑战（每个单项开启才显示） */}
+      {(boss.challenges.matrix.enabled || boss.challenges.sea.enabled || boss.challenges.tower.enabled || boss.challenges.holo.enabled) && (
         <section className="paper-card rise-in rise-in-4 px-6 py-6">
-          <SectionHead icon={<Swords size={20} />} title="周期挑战" desc="每个托管周期各完成一次" />
-          <div className="mt-4 grid gap-3 sm:grid-cols-3">
-            <ChallengeRow label="终焉矩阵" done={boss.challenges.matrix} />
-            <ChallengeRow label="冥歌海城" done={boss.challenges.sea} />
-            <ChallengeRow label="逆境深塔" done={boss.challenges.tower} />
+          <SectionHead icon={<Swords size={20} />} title="高难挑战" desc="深塔 / 海墟 / 矩阵 / 全息，每个托管周期完成一次" />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {boss.challenges.matrix.enabled && <ChallengeRow label="终焉矩阵" done={boss.challenges.matrix.done} />}
+            {boss.challenges.sea.enabled && <ChallengeRow label="冥歌海墟" done={boss.challenges.sea.done} />}
+            {boss.challenges.tower.enabled && <ChallengeRow label="逆境深塔" done={boss.challenges.tower.done} />}
+            {boss.challenges.holo.enabled && <ChallengeRow label="全息投影" done={boss.challenges.holo.done} />}
           </div>
         </section>
       )}
