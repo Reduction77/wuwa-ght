@@ -75,7 +75,7 @@
 
 ### 服务器（Docker）
 
-服务器版的首次部署、Nginx Proxy Manager 容器网络、域名 HTTPS、旧数据迁移、备份、更新和常见错误修复，统一放在独立文档中：
+服务器版的首次部署、Nginx Proxy Manager 容器网络、域名 HTTPS、旧数据迁移、备份、更新冲突和常见错误修复，统一放在独立文档中：
 
 **[查看服务器详细部署与故障修复指南](SERVER_DEPLOYMENT.md)**
 

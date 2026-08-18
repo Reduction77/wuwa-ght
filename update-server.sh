@@ -70,9 +70,25 @@ if [[ -z "$ADMIN_PASSWORD_LINE" || "$ADMIN_PASSWORD_LINE" == 'admin888' ]]; then
   fail '.env 中的 ADMIN_PASSWORD 为空或仍为默认密码'
 fi
 
-if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
-  git status --short
-  fail '服务器仓库存在未提交修改。请先处理这些文件，避免 git pull 覆盖配置'
+DIRTY_STATUS="$(git status --porcelain --untracked-files=no)"
+if [[ -n "$DIRTY_STATUS" ]]; then
+  printf '\n检测到服务器本地修改：\n%s\n' "$DIRTY_STATUS"
+  printf '\n上传到 GitHub 不会自动清除服务器上的本地修改。脚本已停止，以免覆盖有效配置。\n'
+  printf '先查看具体差异，例如：\n  git diff -- docker-compose.yml\n'
+
+  if [[ "$DIRTY_STATUS" == *"docker-compose.yml"* ]]; then
+    COMPOSE_DIFF="$(git diff HEAD -- docker-compose.yml)"
+    if [[ "$COMPOSE_DIFF" == *"npm_default"* ]]; then
+      printf '\n检测到 docker-compose.yml 中可能存在旧版 NPM 网络配置。\n'
+      printf '新版已改用 docker-compose.npm.yml；确认差异只有该配置后，可执行：\n'
+      printf '  cp docker-compose.yml "$HOME/docker-compose.yml.npm-old-backup"\n'
+      printf '  git restore docker-compose.yml\n'
+      printf '  bash update-server.sh\n'
+    fi
+  fi
+
+  printf '\n完整说明：SERVER_DEPLOYMENT.md 的“服务器存在未提交修改”小节。\n'
+  fail '请先确认并处理服务器本地修改；不要使用 git reset --hard'
 fi
 
 PROXY_NETWORK="$(sed -n 's/^PROXY_NETWORK=//p' .env | tail -n 1)"

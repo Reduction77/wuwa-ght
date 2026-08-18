@@ -526,6 +526,42 @@ bash update-server.sh --no-cache
 
 脚本发现服务器仓库存在未提交修改时会停止，不会擅自覆盖；更新失败时会输出容器日志和更新前备份位置。首次把脚本上传到 GitHub 后，需要先手动执行一次 `git pull --ff-only` 取得脚本，以后的更新再直接运行它。
 
+### 更新停止：服务器存在未提交修改
+
+上传新代码到 GitHub 只会改变远程仓库，不会自动清除服务器目录中以前手动修改过的文件。脚本显示类似下面的内容时，`M` 表示该文件在服务器本地被修改过：
+
+```text
+ M docker-compose.yml
+```
+
+先查看具体差异：
+
+```bash
+git diff -- docker-compose.yml
+```
+
+如果命令进入翻页界面，查看完成后按 `q` 退出。不要还没看差异就执行恢复命令，也不要使用 `git reset --hard`。
+
+旧部署为了修复 Nginx Proxy Manager 的 502，可能曾经把下面的网络配置直接写进 `docker-compose.yml`：
+
+```yaml
+networks:
+  - npm_default
+```
+
+当前版本已经通过独立的 `docker-compose.npm.yml` 连接 NPM 网络。确认本地差异只有这项旧网络配置，并且项目中存在 `docker-compose.npm.yml` 后，可以先备份再恢复仓库版本：
+
+```bash
+cp docker-compose.yml "$HOME/docker-compose.yml.npm-old-backup"
+git restore docker-compose.yml
+git status --short
+bash update-server.sh
+```
+
+上述操作只恢复代码仓库中的 Compose 配置，不会删除 Docker 数据卷、`.env` 或老板资料。更新脚本检测到 `.env` 中的 `PROXY_NETWORK`（默认 `npm_default`）确实存在后，会自动加载 `docker-compose.npm.yml`。
+
+如果差异中还有端口、卷路径或其他必须保留的服务器配置，不要执行 `git restore`。应先把通用改动同步到 GitHub，或者把服务器专用配置迁移到 `.env` 或单独的 Compose 覆盖文件，再运行更新脚本。
+
 ### 手动更新（脚本不可用时）
 
 ```bash

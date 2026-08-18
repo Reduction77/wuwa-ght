@@ -30,10 +30,10 @@ export default function DayGrid({ boss, editable, onToggleDay }: Props) {
             className={[
               'day-cell group relative flex flex-col items-center justify-center rounded-xl px-1 text-xs font-bold transition-transform duration-200',
               done
-                ? 'border border-[#b8dcfa] bg-[var(--surface-cyan)] text-[#2a7fd4] shadow-sm'
+                ? 'border border-[#45a9ff] bg-[#45a9ff] text-white shadow-sm'
                 : future
-                  ? 'border border-dashed border-[var(--line)] bg-white/45 text-[var(--muted-text)]'
-                  : 'border border-[var(--line)] bg-white text-[var(--ink-soft)]',
+                  ? 'border border-dashed border-[#b8d8f5] bg-white text-[#2a7fd4]'
+                  : 'border border-[#b8d8f5] bg-white text-[#2a7fd4]',
               isToday ? 'today-breathe ring-2 ring-[var(--signal)]' : '',
               editable ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default',
             ].join(' ')}
@@ -45,7 +45,7 @@ export default function DayGrid({ boss, editable, onToggleDay }: Props) {
             )}
             <span className="flex h-[80%] w-[80%] flex-col items-center justify-center">
               <span className="day-cell-number">{i + 1}</span>
-              <span className={`day-cell-date ${done ? 'text-[#5b8bb4]' : ''}`}>
+              <span className={`day-cell-date ${done ? 'text-white/95' : 'text-[#2a7fd4]'}`}>
                 {date.slice(5).replace('-', '/')}
               </span>
             </span>
