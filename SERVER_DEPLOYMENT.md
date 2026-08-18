@@ -504,6 +504,30 @@ git status --short
 
 如果服务器目录存在未提交修改，不要直接覆盖；先确认这些修改是否需要保留。Git 部署方式可使用：
 
+### 推荐：一键更新脚本
+
+项目根目录已经提供 `update-server.sh`。它会依次完成：检查环境、检查 `.env`、备份完整 `/data`、拉取 GitHub、识别 NPM 网络、构建镜像、修复数据卷权限、重建容器和健康检查。
+
+日常更新只需：
+
+```bash
+cd ~/data/wuwa-ght
+bash -n update-server.sh
+bash update-server.sh
+```
+
+其中 `bash -n` 只做脚本语法检查，不会更新或修改数据；首次运行或手动改过脚本后建议先执行一次。语法检查通过后，以后日常更新可以直接运行 `bash update-server.sh`。
+
+如果怀疑 Docker 构建缓存导致页面没有更新，可以全量重建：
+
+```bash
+bash update-server.sh --no-cache
+```
+
+脚本发现服务器仓库存在未提交修改时会停止，不会擅自覆盖；更新失败时会输出容器日志和更新前备份位置。首次把脚本上传到 GitHub 后，需要先手动执行一次 `git pull --ff-only` 取得脚本，以后的更新再直接运行它。
+
+### 手动更新（脚本不可用时）
+
 ```bash
 git pull --ff-only
 sudo docker compose -f docker-compose.yml -f docker-compose.npm.yml build --pull
