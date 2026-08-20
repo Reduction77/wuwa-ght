@@ -140,6 +140,10 @@ export function bossStats(b: Boss): BossStats {
     tasksTotal += 1;
     if (b.optionals.gacha.done) tasksDone++;
   }
+  if (b.optionals.trial.enabled) {
+    tasksTotal += 1;
+    if (b.optionals.trial.done) tasksDone++;
+  }
   b.extraTasks.filter((task) => task.visible).forEach((task) => {
     tasksTotal += 1;
     if (task.done) tasksDone += 1;

@@ -27,7 +27,7 @@ test('只有日常的套餐完成后总体进度可以达到100%', () => {
     show: { daily: true, weekly: false, bigEvent: false },
     bigEvent: { name: '', image: '', done: false }, smallEvents: [],
     challenges: { matrix: { enabled: false, done: false }, sea: { enabled: false, done: false }, tower: { enabled: false, done: false }, holo: { enabled: false, done: false } },
-    optionals: { redeem: { enabled: false, done: false }, gacha: { enabled: false, done: false } },
+    optionals: { redeem: { enabled: false, done: false }, gacha: { enabled: false, done: false }, trial: { enabled: false, done: false } },
     extraTasks: [],
   };
   assert.equal(bossStats(boss).overall, 100);

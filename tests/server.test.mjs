@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -10,9 +10,16 @@ test('服务器隔离老板数据并检测保存冲突', async (t) => {
   const port = 13991;
   const initial = {
     version: 1, revision: 0, updatedAt: new Date().toISOString(), accepting: { on: true, text: '测试' },
-    bosses: [{ id: 'boss-1', name: '测试老板', account: '***', passcode: '1234', startDate: '2026-08-19', cycleDays: 30, daily: [], weekly: [] }],
+    bosses: [{
+      id: 'boss-1', name: '测试老板', account: '***', passcode: '1234', startDate: '2026-08-19', cycleDays: 30, daily: [], weekly: [],
+      bigEvent: { name: '旧活动', image: '/api/uploads/used.webp', done: false },
+    }],
   };
   writeFileSync(join(dir, 'data.json'), JSON.stringify(initial));
+  const uploadDir = join(dir, 'uploads');
+  mkdirSync(uploadDir, { recursive: true });
+  writeFileSync(join(uploadDir, 'used.webp'), 'used');
+  writeFileSync(join(uploadDir, 'orphan.webp'), 'orphan');
   const child = spawn(process.execPath, ['server.js'], {
     cwd: process.cwd(),
     env: { ...process.env, PORT: String(port), DATA_DIR: dir, ADMIN_PASSWORD: 'test-admin-password', NODE_ENV: 'test' },
@@ -40,8 +47,18 @@ test('服务器隔离老板数据并检测保存冲突', async (t) => {
 
   const headers = { Authorization: 'Bearer test-admin-password', 'Content-Type': 'application/json' };
   const current = await (await fetch(`${base}/api/data`, { headers })).json();
+  const firstCleanup = await (await fetch(`${base}/api/cleanup-uploads`, { method: 'POST', headers })).json();
+  assert.equal(firstCleanup.removed, 1);
+  assert.equal(existsSync(join(uploadDir, 'used.webp')), true);
+  assert.equal(existsSync(join(uploadDir, 'orphan.webp')), false);
+
+  current.bosses[0].bigEvent = { name: '', image: '', done: false };
   const saved = await fetch(`${base}/api/data`, { method: 'PUT', headers, body: JSON.stringify(current) });
   assert.equal(saved.status, 200);
+  const secondCleanup = await (await fetch(`${base}/api/cleanup-uploads`, { method: 'POST', headers })).json();
+  assert.equal(secondCleanup.removed, 1);
+  assert.equal(existsSync(join(uploadDir, 'used.webp')), false);
+
   const conflict = await fetch(`${base}/api/data`, { method: 'PUT', headers, body: JSON.stringify(current) });
   assert.equal(conflict.status, 409);
 });

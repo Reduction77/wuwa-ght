@@ -454,10 +454,11 @@ function PauseIcon() {
 
 /* ---------- 游戏版本更新：与老板的托管周期相互独立 ---------- */
 function VersionResetCard() {
-  const { data, resetVersionProgress } = useStore();
+  const { data, resetVersionProgress, serverMode, adminKey, save } = useStore();
+  const [resetting, setResetting] = useState(false);
   const activeCount = data.bosses.filter((b) => !b.archived && cycleEndDate(b) >= todayStr()).length;
 
-  const reset = () => {
+  const reset = async () => {
     if (activeCount === 0) return;
     const versionName = prompt('输入新游戏版本名称（例如 2.6）', data.gameVersion?.name || '');
     if (versionName === null) return;
@@ -469,9 +470,29 @@ function VersionResetCard() {
       return;
     }
     const ok = confirm(
-      `确定更新到「${versionName || '未命名版本'}」并重置吗？\n\n将影响 ${activeCount} 位当前仍在托管的老板（包括版本中途加入的老板）。\n会重置：大活动、小活动、全息、兑换码、抽卡道具。\n会保留：日常、周常、海墟、深塔、矩阵。`
+      `确定更新到「${versionName || '未命名版本'}」并重置吗？\n\n将影响 ${activeCount} 位当前仍在托管的老板（包括版本中途加入的老板）。\n会清空：大活动、小活动的名称、图片、日期和完成状态。\n会重置：矩阵、全息、兑换码、抽卡道具、角色试用。\n会保留：日常、周常、海墟、深塔。\n服务器版保存成功后会自动清理未使用的活动图片。`
     );
-    if (ok) resetVersionProgress({ name: versionName, expectedDays });
+    if (!ok) return;
+
+    setResetting(true);
+    try {
+      resetVersionProgress({ name: versionName, expectedDays });
+      if (serverMode && adminKey) {
+        const saved = await save();
+        if (!saved) {
+          alert('版本重置已经暂存在当前页面，但保存到服务器失败，因此没有清理图片。请先处理顶部的保存错误后重试。');
+          return;
+        }
+        try {
+          const removed = await cleanupServerImages(adminKey);
+          alert(`版本重置完成，已清理 ${removed} 张未使用的活动图片。`);
+        } catch (error) {
+          alert(`版本数据已保存，但图片自动清理失败：${error instanceof Error ? error.message : '未知错误'}。可以稍后在“数据备份 / 恢复”中点击“清理旧图片”。`);
+        }
+      }
+    } finally {
+      setResetting(false);
+    }
   };
 
   return (
@@ -485,8 +506,8 @@ function VersionResetCard() {
           当前：{data.gameVersion?.name || '未设置'}；日期不固定，由你更新当天手动重置
         </p>
       </div>
-      <button type="button" disabled={activeCount === 0} onClick={reset} className="btn-ghost !px-4 !py-2 text-xs shrink-0">
-        重置 {activeCount} 位
+      <button type="button" disabled={activeCount === 0 || resetting} onClick={() => void reset()} className="btn-ghost !px-4 !py-2 text-xs shrink-0">
+        {resetting ? '正在重置…' : `重置 ${activeCount} 位`}
       </button>
     </div>
   );

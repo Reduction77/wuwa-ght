@@ -14,6 +14,7 @@ import {
   Sparkles,
   Swords,
   Ticket,
+  UserRoundCheck,
 } from 'lucide-react';
 
 interface Props {
@@ -278,6 +279,7 @@ function buildVersionTasks(boss: Boss): DisplayTask[] {
   });
   if (boss.optionals.redeem.enabled) tasks.push({ id: 'redeem', label: '兑换前瞻兑换码', meta: '其他小委托', done: boss.optionals.redeem.done, icon: <Ticket size={14} /> });
   if (boss.optionals.gacha.enabled) tasks.push({ id: 'gacha', label: '购买当前版本抽卡道具', meta: '其他小委托', done: boss.optionals.gacha.done, icon: <Gift size={14} /> });
+  if (boss.optionals.trial.enabled) tasks.push({ id: 'trial', label: '角色试用', meta: '其他小委托', done: boss.optionals.trial.done, icon: <UserRoundCheck size={14} /> });
   boss.extraTasks.filter((task) => task.visible).forEach((task) => tasks.push({ id: `extra-${task.id}`, label: task.name, meta: '临时加项', done: task.done, icon: <Circle size={14} /> }));
   return tasks;
 }

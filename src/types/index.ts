@@ -75,6 +75,7 @@ export interface Boss {
   optionals: {
     redeem: ToggleItem;
     gacha: ToggleItem;
+    trial: ToggleItem;
   };
   extraTasks: ExtraTask[];
   cycleHistory: CycleSnapshot[];

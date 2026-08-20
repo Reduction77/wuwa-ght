@@ -24,16 +24,21 @@ export function renewBossForDate(boss: Boss, today: string, id = `cycle-${Date.n
   };
 }
 
-/** 游戏版本更新保留固定刷新任务，只重置版本类完成状态。 */
+/** 游戏版本更新：清空旧活动资料，保留日常/周常/海墟/深塔并重置其余版本任务。 */
 export function resetBossVersionProgress(boss: Boss): Boss {
   return {
     ...boss,
-    bigEvent: { ...boss.bigEvent, done: false, openDate: '', deadline: '' },
-    smallEvents: boss.smallEvents.map((event) => ({ ...event, done: false, openDate: '', deadline: '' })),
-    challenges: { ...boss.challenges, holo: { ...boss.challenges.holo, done: false } },
+    bigEvent: { name: '', image: '', done: false, openDate: '', deadline: '' },
+    smallEvents: boss.smallEvents.map(() => ({ name: '', image: '', done: false, openDate: '', deadline: '' })),
+    challenges: {
+      ...boss.challenges,
+      matrix: { ...boss.challenges.matrix, done: false },
+      holo: { ...boss.challenges.holo, done: false },
+    },
     optionals: {
       redeem: { ...boss.optionals.redeem, done: false },
       gacha: { ...boss.optionals.gacha, done: false },
+      trial: { ...boss.optionals.trial, done: false },
     },
   };
 }

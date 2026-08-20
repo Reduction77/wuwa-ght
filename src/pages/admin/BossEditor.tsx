@@ -379,6 +379,13 @@ export default function BossEditor({ boss }: Props) {
             onEnable={(v) => mutateBoss(boss.id, (b) => ({ ...b, optionals: { ...b.optionals, gacha: { ...b.optionals.gacha, enabled: v } } }))}
             onToggle={() => mutateBoss(boss.id, (b) => ({ ...b, optionals: { ...b.optionals, gacha: { ...b.optionals.gacha, done: !b.optionals.gacha.done } } }))}
           />
+          <OptionalRow
+            label="角色试用"
+            enabled={boss.optionals.trial.enabled}
+            done={boss.optionals.trial.done}
+            onEnable={(v) => mutateBoss(boss.id, (b) => ({ ...b, optionals: { ...b.optionals, trial: { ...b.optionals.trial, enabled: v } } }))}
+            onToggle={() => mutateBoss(boss.id, (b) => ({ ...b, optionals: { ...b.optionals, trial: { ...b.optionals.trial, done: !b.optionals.trial.done } } }))}
+          />
         </div>
       </section>
 

@@ -5,10 +5,10 @@ import { renewBossForDate, resetBossVersionProgress } from '../src/lib/boss-rule
 function boss() {
   return {
     id: '1', startDate: '2026-07-01', cycleDays: 30, daily: ['2026-07-01'], weekly: ['2026-06-29'], renewalState: 'none', cycleHistory: [], excludedDays: [],
-    bigEvent: { name: '大活动', image: '', done: true, openDate: '2026-07-01', deadline: '2026-07-20' },
-    smallEvents: [{ name: '小活动', image: '', done: true }],
+    bigEvent: { name: '大活动', image: '/api/uploads/big.webp', done: true, openDate: '2026-07-01', deadline: '2026-07-20' },
+    smallEvents: [{ name: '小活动', image: '/api/uploads/small.webp', done: true }],
     challenges: { matrix: { enabled: true, done: true }, sea: { enabled: true, done: true }, tower: { enabled: true, done: true }, holo: { enabled: true, done: true } },
-    optionals: { redeem: { enabled: true, done: true }, gacha: { enabled: true, done: true } }, extraTasks: [],
+    optionals: { redeem: { enabled: true, done: true }, gacha: { enabled: true, done: true }, trial: { enabled: true, done: true } }, extraTasks: [],
   };
 }
 
@@ -22,15 +22,20 @@ test('同版本续期只清日常并归档旧周期', () => {
   assert.equal(after.cycleHistory[0].daily.length, 1);
 });
 
-test('版本更新保留日常周常海墟深塔矩阵并重置其余版本任务', () => {
+test('版本更新保留日常周常海墟深塔并清空活动资料及重置矩阵', () => {
   const before = boss();
   const after = resetBossVersionProgress(before);
   assert.deepEqual(after.daily, before.daily);
   assert.deepEqual(after.weekly, before.weekly);
-  assert.equal(after.challenges.matrix.done, true);
+  assert.equal(after.challenges.matrix.done, false);
   assert.equal(after.challenges.sea.done, true);
   assert.equal(after.challenges.tower.done, true);
   assert.equal(after.challenges.holo.done, false);
   assert.equal(after.bigEvent.done, false);
+  assert.equal(after.bigEvent.name, '');
+  assert.equal(after.bigEvent.image, '');
+  assert.equal(after.smallEvents[0].name, '');
+  assert.equal(after.smallEvents[0].image, '');
   assert.equal(after.optionals.redeem.done, false);
+  assert.equal(after.optionals.trial.done, false);
 });

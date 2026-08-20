@@ -45,11 +45,11 @@ interface Store {
   mutateBosses: (ids: string[], fn: (b: Boss) => Boss, audit?: { action: string; detail?: string }) => void;
   addBoss: (b: Boss) => void;
   removeBoss: (id: string) => void;
-  save: () => Promise<void>;
+  save: () => Promise<boolean>;
   reload: () => Promise<void>;
   /** 同版本续期：从当前游戏日开始新的日常周期，只清空日常记录 */
   renewBoss: (id: string) => void;
-  /** 版本更新：重置进行中老板的版本任务，保留日常、周常、海墟、深塔、矩阵 */
+  /** 版本更新：重置进行中老板的版本任务，保留日常、周常、海墟、深塔 */
   resetVersionProgress: (version?: { name: string; expectedDays?: number }) => void;
   archiveBoss: (id: string, archived: boolean) => void;
   undo: () => void;
@@ -134,6 +134,7 @@ export function normalizeSiteData(data: SiteData): SiteData {
         optionals: {
           redeem: tog(b.optionals?.redeem, false),
           gacha: tog(b.optionals?.gacha, false),
+          trial: tog(b.optionals?.trial, false),
         },
         extraTasks: (b.extraTasks ?? []).map((task) => ({
           id: task.id || `task-${Math.random().toString(36).slice(2, 9)}`,
@@ -439,9 +440,11 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       setDirty(false);
       setSaveState('saved');
       setTimeout(() => setSaveState((s) => (s === 'saved' ? 'idle' : s)), 2500);
+      return true;
     } catch (e) {
       setSaveError(e instanceof Error ? e.message : '保存失败');
       setSaveState('error');
+      return false;
     }
   }, [github, serverMode, adminKey]);
 
@@ -548,6 +551,7 @@ export function emptyBoss(id: string): Boss {
     optionals: {
       redeem: { enabled: false, done: false },
       gacha: { enabled: false, done: false },
+      trial: { enabled: false, done: false },
     },
     extraTasks: [],
     cycleHistory: [],
