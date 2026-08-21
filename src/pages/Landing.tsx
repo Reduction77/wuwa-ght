@@ -141,7 +141,15 @@ export default function Landing({ onGoBoss, onGoAdmin }: Props) {
       </section>
 
       <section className="mt-20 sm:mt-24">
-        <div className="paper-card grid overflow-hidden sm:grid-cols-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="eyebrow text-[var(--signal-strong)]">CONTACT &amp; FOLLOW</p>
+            <h2 className="font-display mt-3 text-3xl text-[var(--ink)]">想聊托管OR来看看我</h2>
+          </div>
+          <p className="text-sm text-[var(--muted-text)]">托管咨询请联系微信，日常动态与直播可以在哔哩哔哩找到我</p>
+        </div>
+
+        <div className="paper-card mt-7 grid overflow-hidden sm:grid-cols-2">
           <div className="flex flex-col items-center px-6 py-7 text-center sm:border-r sm:border-[var(--line)]">
             <span className="section-icon"><MessageCircleHeart size={20} /></span>
             <p className="font-display mt-3 text-xl text-[var(--ink)]">微信咨询</p>
