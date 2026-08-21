@@ -144,7 +144,7 @@ export default function Landing({ onGoBoss, onGoAdmin }: Props) {
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="eyebrow text-[var(--signal-strong)]">CONTACT &amp; FOLLOW</p>
-            <h2 className="font-display mt-3 text-3xl text-[var(--ink)]">想聊托管OR来看看我</h2>
+            <h2 className="font-display mt-3 text-3xl text-[var(--ink)]">想聊托管or来看看我</h2>
           </div>
           <p className="text-sm text-[var(--muted-text)]">托管咨询请联系微信，日常动态与直播可以在哔哩哔哩找到我</p>
         </div>
