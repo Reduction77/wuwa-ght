@@ -6,7 +6,7 @@ import { addDays, cycleWeeks, currentWeekIndex, fmtCN, isDateRangeInvalid, today
 import { uploadRemoteImage } from '@/lib/github';
 import { uploadServerImage } from '@/lib/server';
 import { CheckCircle2, Circle, ImagePlus, RotateCcw, Trash2 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 interface Props {
@@ -521,74 +521,100 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
   const isBig = edit.kind === 'big';
   const idx = typeof edit.kind === 'number' ? edit.kind : -1;
   const event: EventItem = isBig ? boss.bigEvent : boss.smallEvents[idx];
-  const invalidDateRange = isDateRangeInvalid(event.openDate, event.deadline);
+  const [draft, setDraft] = useState<EventItem>(() => ({ ...event }));
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState('');
+  const invalidDateRange = isDateRangeInvalid(draft.openDate, draft.deadline);
+  const displayImage = previewUrl || draft.image;
 
-  // 名称/图片是全服共享的（同一版本活动大家都一样），改动会同步到所有老板；完成状态仍各记各的
-  const apply = (patch: Partial<Pick<EventItem, 'name' | 'image' | 'openDate' | 'deadline'>>) => syncEventMeta(isBig ? 'big' : idx, patch);
+  useEffect(() => () => {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+  }, [previewUrl]);
+
+  // 弹窗内只修改草稿；点击“完成”后才统一同步到所有老板。
+  const updateDraft = (patch: Partial<Pick<EventItem, 'name' | 'image' | 'openDate' | 'deadline'>>) => {
+    setDraft((current) => ({ ...current, ...patch }));
+  };
 
   const changeOpenDate = (openDate: string) => {
-    if (isDateRangeInvalid(openDate, event.deadline)) {
+    if (isDateRangeInvalid(openDate, draft.deadline)) {
       setDateErr('开放日期不能晚于截止日期，请重新选择开放日期或先修改截止日期。');
       return;
     }
     setDateErr('');
-    apply({ openDate });
+    updateDraft({ openDate });
   };
 
   const changeDeadline = (deadline: string) => {
-    if (isDateRangeInvalid(event.openDate, deadline)) {
+    if (isDateRangeInvalid(draft.openDate, deadline)) {
       setDateErr('截止日期不能早于开放日期，请重新选择截止日期或先修改开放日期。');
       return;
     }
     setDateErr('');
-    apply({ deadline });
+    updateDraft({ deadline });
   };
 
-  const requestClose = () => {
-    if (invalidDateRange) {
-      setDateErr('开放日期不能晚于截止日期，请修改后再完成编辑。');
+  const chooseImage = (file: File) => {
+    setErr('');
+    setPendingFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setPendingFile(null);
+    setPreviewUrl('');
+    updateDraft({ image: '' });
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const complete = async () => {
+    if (dateErr || invalidDateRange) {
+      if (!dateErr) setDateErr('开放日期不能晚于截止日期，请修改后再完成编辑。');
       return;
     }
-    onClose();
-  };
-
-  const pickImage = async (file: File) => {
     setBusy(true);
     setErr('');
     try {
-      if (serverMode && adminKey) {
-        const url = await uploadServerImage(adminKey, file);
-        apply({ image: url });
-      } else if (github) {
-        const path = await uploadRemoteImage(github, file);
-        apply({ image: path });
-      } else {
-        const dataUrl = await downscaleToDataUrl(file, 960);
-        apply({ image: dataUrl });
+      let image = draft.image;
+      if (pendingFile) {
+        if (serverMode && adminKey) image = await uploadServerImage(adminKey, pendingFile);
+        else if (github) image = await uploadRemoteImage(github, pendingFile);
+        else image = await downscaleToDataUrl(pendingFile, 960);
       }
+      syncEventMeta(isBig ? 'big' : idx, {
+        name: draft.name,
+        image,
+        openDate: draft.openDate || '',
+        deadline: draft.deadline || '',
+      });
+      onClose();
     } catch (e) {
-      setErr(e instanceof Error ? e.message : '上传失败');
+      setErr(e instanceof Error ? e.message : '保存失败');
     } finally {
       setBusy(false);
     }
   };
 
+  const cancel = () => {
+    if (!busy) onClose();
+  };
+
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#22405c]/35 p-4 backdrop-blur-sm" onClick={requestClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#22405c]/35 p-4 backdrop-blur-sm" onClick={cancel}>
       <div className="paper-card view-swap w-full max-w-md px-6 py-6" onClick={(e) => e.stopPropagation()}>
         <h4 className="font-display text-lg" style={{ color: '#22405c' }}>
           编辑{isBig ? '大活动' : `小活动 ${idx + 1}`}
         </h4>
-        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>同一版本活动全服一样，这里的名称和图片会同步到所有老板</p>
+        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>修改只会暂存在此弹窗，点击“完成”后才会同步到所有老板</p>
         <Field label="活动名称" className="mt-4">
-          <input className="input-soft" value={event.name} placeholder="输入当前版本的活动名" onChange={(e) => apply({ name: e.target.value })} />
+          <input className="input-soft" value={draft.name} placeholder="输入当前版本的活动名" onChange={(e) => updateDraft({ name: e.target.value })} />
         </Field>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Field label="开放日期（可选）">
-            <input type="date" className="input-soft" value={event.openDate || ''} max={event.deadline || undefined} aria-invalid={invalidDateRange || undefined} onChange={(e) => changeOpenDate(e.target.value)} />
+            <input type="date" className="input-soft" value={draft.openDate || ''} max={draft.deadline || undefined} aria-invalid={invalidDateRange || undefined} onChange={(e) => changeOpenDate(e.target.value)} />
           </Field>
           <Field label="截止日期（可选）">
-            <input type="date" className="input-soft" value={event.deadline || ''} min={event.openDate || undefined} aria-invalid={invalidDateRange || undefined} onChange={(e) => changeDeadline(e.target.value)} />
+            <input type="date" className="input-soft" value={draft.deadline || ''} min={draft.openDate || undefined} aria-invalid={invalidDateRange || undefined} onChange={(e) => changeDeadline(e.target.value)} />
           </Field>
         </div>
         {(dateErr || invalidDateRange) && (
@@ -598,12 +624,13 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
         )}
         <div className="mt-4">
           <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>活动图片（可选，不传就不显示图片位）</span>
-          {event.image ? (
+          {displayImage ? (
             <div className="relative overflow-hidden rounded-2xl">
-              <img src={event.image} alt="活动图" className="h-40 w-full object-cover" />
+              <img src={displayImage} alt="活动图预览" className="h-40 w-full object-cover" />
               <button
                 type="button"
-                onClick={() => apply({ image: '' })}
+                disabled={busy}
+                onClick={removeImage}
                 className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-[#e05548] shadow transition hover:scale-105"
               >
                 <Trash2 size={12} /> 移除图片
@@ -618,11 +645,12 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
               style={{ borderColor: '#cfe3f6', color: '#7e96ad' }}
             >
               <ImagePlus size={26} />
-              {busy ? '上传中…' : serverMode ? '点击上传图片（存入服务器）' : github ? '点击上传图片（存入仓库）' : '点击上传图片（仅本地）'}
+              点击选择图片并预览
             </button>
           )}
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && pickImage(e.target.files[0])} />
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && chooseImage(e.target.files[0])} />
           {err && <p className="mt-2 text-xs font-semibold" style={{ color: '#e05548' }}>{err}</p>}
+          {pendingFile && <p className="mt-2 text-[11px] font-semibold text-[#2a7fd4]">已选择“{pendingFile.name}”，点击“完成”后才会上传并保存。</p>}
           {!github && !serverMode && (
             <p className="mt-2 text-[11px]" style={{ color: '#9db4c9' }}>
               未连接 GitHub，图片只保存在当前浏览器；连接后上传的图片会写入仓库，所有人可见。
@@ -635,8 +663,11 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
           )}
         </div>
         <div className="mt-6 flex justify-end gap-2">
-          <button type="button" className="btn-primary !px-5 !py-2 text-sm" onClick={requestClose}>
-            完成
+          <button type="button" disabled={busy} className="btn-ghost !px-5 !py-2 text-sm" onClick={cancel}>
+            取消
+          </button>
+          <button type="button" disabled={busy} className="btn-primary !px-5 !py-2 text-sm" onClick={() => void complete()}>
+            {busy ? '保存中…' : '完成'}
           </button>
         </div>
       </div>
