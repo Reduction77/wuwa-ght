@@ -1,10 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bossStats, cycleDates, cycleEndDate, todayStr, weekRange } from '../src/lib/dates.ts';
+import { bossStats, cycleDates, cycleEndDate, isDateRangeInvalid, todayStr, weekRange } from '../src/lib/dates.ts';
 
 test('游戏日按北京时间凌晨4点切换', () => {
   assert.equal(todayStr(new Date('2026-08-19T19:59:59Z')), '2026-08-19');
   assert.equal(todayStr(new Date('2026-08-19T20:00:00Z')), '2026-08-20');
+});
+
+test('活动开放日期不能晚于截止日期', () => {
+  assert.equal(isDateRangeInvalid('2026-09-22', '2026-09-21'), true);
+  assert.equal(isDateRangeInvalid('2026-09-21', '2026-09-21'), false);
+  assert.equal(isDateRangeInvalid('2026-09-20', '2026-09-21'), false);
+  assert.equal(isDateRangeInvalid('', '2026-09-21'), false);
 });
 
 test('周常使用真实日历周的周一作为键', () => {

@@ -29,6 +29,11 @@ export function addDays(dateStr: string, n: number): string {
   return toDateStr(d);
 }
 
+/** 日期范围两端都填写时，开始日期不能晚于截止日期。 */
+export function isDateRangeInvalid(start?: string, end?: string): boolean {
+  return Boolean(start && end && start > end);
+}
+
 export function fmtCN(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return `${d.getMonth() + 1}月${d.getDate()}日`;

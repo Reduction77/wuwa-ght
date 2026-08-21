@@ -2,7 +2,7 @@ import { tierServices, type Boss, type EventItem } from '@/types';
 import { useStore } from '@/lib/store';
 import DayGrid from '@/components/DayGrid';
 import EventCard from '@/components/EventCard';
-import { addDays, cycleWeeks, currentWeekIndex, fmtCN, todayStr, weekRange } from '@/lib/dates';
+import { addDays, cycleWeeks, currentWeekIndex, fmtCN, isDateRangeInvalid, todayStr, weekRange } from '@/lib/dates';
 import { uploadRemoteImage } from '@/lib/github';
 import { uploadServerImage } from '@/lib/server';
 import { CheckCircle2, Circle, ImagePlus, RotateCcw, Trash2 } from 'lucide-react';
@@ -516,13 +516,41 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [dateErr, setDateErr] = useState('');
 
   const isBig = edit.kind === 'big';
   const idx = typeof edit.kind === 'number' ? edit.kind : -1;
   const event: EventItem = isBig ? boss.bigEvent : boss.smallEvents[idx];
+  const invalidDateRange = isDateRangeInvalid(event.openDate, event.deadline);
 
   // 名称/图片是全服共享的（同一版本活动大家都一样），改动会同步到所有老板；完成状态仍各记各的
   const apply = (patch: Partial<Pick<EventItem, 'name' | 'image' | 'openDate' | 'deadline'>>) => syncEventMeta(isBig ? 'big' : idx, patch);
+
+  const changeOpenDate = (openDate: string) => {
+    if (isDateRangeInvalid(openDate, event.deadline)) {
+      setDateErr('开放日期不能晚于截止日期，请重新选择开放日期或先修改截止日期。');
+      return;
+    }
+    setDateErr('');
+    apply({ openDate });
+  };
+
+  const changeDeadline = (deadline: string) => {
+    if (isDateRangeInvalid(event.openDate, deadline)) {
+      setDateErr('截止日期不能早于开放日期，请重新选择截止日期或先修改开放日期。');
+      return;
+    }
+    setDateErr('');
+    apply({ deadline });
+  };
+
+  const requestClose = () => {
+    if (invalidDateRange) {
+      setDateErr('开放日期不能晚于截止日期，请修改后再完成编辑。');
+      return;
+    }
+    onClose();
+  };
 
   const pickImage = async (file: File) => {
     setBusy(true);
@@ -546,7 +574,7 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#22405c]/35 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#22405c]/35 p-4 backdrop-blur-sm" onClick={requestClose}>
       <div className="paper-card view-swap w-full max-w-md px-6 py-6" onClick={(e) => e.stopPropagation()}>
         <h4 className="font-display text-lg" style={{ color: '#22405c' }}>
           编辑{isBig ? '大活动' : `小活动 ${idx + 1}`}
@@ -557,12 +585,17 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
         </Field>
         <div className="mt-3 grid grid-cols-2 gap-3">
           <Field label="开放日期（可选）">
-            <input type="date" className="input-soft" value={event.openDate || ''} onChange={(e) => apply({ openDate: e.target.value })} />
+            <input type="date" className="input-soft" value={event.openDate || ''} max={event.deadline || undefined} aria-invalid={invalidDateRange || undefined} onChange={(e) => changeOpenDate(e.target.value)} />
           </Field>
           <Field label="截止日期（可选）">
-            <input type="date" className="input-soft" value={event.deadline || ''} onChange={(e) => apply({ deadline: e.target.value })} />
+            <input type="date" className="input-soft" value={event.deadline || ''} min={event.openDate || undefined} aria-invalid={invalidDateRange || undefined} onChange={(e) => changeDeadline(e.target.value)} />
           </Field>
         </div>
+        {(dateErr || invalidDateRange) && (
+          <p className="mt-2 rounded-xl border border-[#f4c7c3] bg-[#fff5f4] px-3 py-2 text-xs font-semibold leading-5 text-[#d4473d]" role="alert">
+            {dateErr || '开放日期不能晚于截止日期，请修改后再继续。'}
+          </p>
+        )}
         <div className="mt-4">
           <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>活动图片（可选，不传就不显示图片位）</span>
           {event.image ? (
@@ -602,7 +635,7 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
           )}
         </div>
         <div className="mt-6 flex justify-end gap-2">
-          <button type="button" className="btn-primary !px-5 !py-2 text-sm" onClick={onClose}>
+          <button type="button" className="btn-primary !px-5 !py-2 text-sm" onClick={requestClose}>
             完成
           </button>
         </div>
