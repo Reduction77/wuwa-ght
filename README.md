@@ -103,4 +103,4 @@ GitHub Pages 是纯静态站，`public/data.json` 必然可被直接读取，只
 
 ## LICENSE
 
-![MIT](https://github.com/Reduction77/wuwa-ght/blob/main/LICENSE)
+[MIT](https://github.com/Reduction77/wuwa-ght/blob/main/LICENSE)
