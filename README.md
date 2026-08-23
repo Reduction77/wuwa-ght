@@ -100,3 +100,7 @@ npm run build   # 产物在 dist/
 ## 安全说明
 
 GitHub Pages 是纯静态站，`public/data.json` 必然可被直接读取，只适合公开演示数据。真实老板数据请使用服务器版；即使使用服务器版，也只保存打码账号，不要在本站记录游戏密码、完整手机号或其他敏感信息。
+
+## LICENSE
+
+![MIT](https://github.com/Reduction77/wuwa-ght/blob/main/LICENSE)
