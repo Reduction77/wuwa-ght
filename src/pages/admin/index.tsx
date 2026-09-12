@@ -782,31 +782,41 @@ function SaveBar() {
           {canUndo && <button type="button" onClick={undo} disabled={saving} className="save-action save-action-secondary" aria-label="撤销上一步" title="撤销上一步"><RotateCcw size={15} /></button>}
         </div>
       </aside>
-      {(saveState === 'saved' || saveState === 'error') && (
-        <SaveToast key={saveState} state={saveState} detail={failed ? saveError : github && !serverMode ? '约 1～2 分钟后页面生效' : `改动已保存到${destination}`} />
-      )}
+      <SaveToast state={saveState} detail={failed ? saveError : github && !serverMode ? '约 1～2 分钟后页面生效' : `改动已保存到${destination}`} />
     </>,
     document.body
   );
 }
 
-function SaveToast({ state, detail }: { state: 'saved' | 'error'; detail: string }) {
-  const [dismissed, setDismissed] = useState(false);
-  const failed = state === 'error';
+function SaveToast({ state, detail }: { state: string; detail: string }) {
+  const [notice, setNotice] = useState<{ state: 'saved' | 'error'; detail: string } | null>(null);
+  const [leaving, setLeaving] = useState(false);
+  // 保存状态回到 idle 时仍保留提示，让它完成自己的停留和退出动画。
   useEffect(() => {
-    if (state !== 'saved') return;
-    const timer = window.setTimeout(() => setDismissed(true), 3500);
+    if (state !== 'saved' && state !== 'error') return;
+    const timer = window.setTimeout(() => {
+      setNotice({ state, detail });
+      setLeaving(false);
+    }, 0);
     return () => window.clearTimeout(timer);
-  }, [state]);
-  if (dismissed) return null;
+  }, [state, detail]);
+  useEffect(() => {
+    if (notice?.state !== 'saved') return;
+    const timer = window.setTimeout(() => setLeaving(true), 3500);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
+  if (!notice) return null;
+  const failed = notice.state === 'error';
   return (
-    <div className={`save-toast ${failed ? 'save-toast-error' : ''}`} role={failed ? 'alert' : 'status'} aria-live={failed ? 'assertive' : 'polite'} aria-atomic="true">
+    <div className={`save-toast ${failed ? 'save-toast-error' : ''} ${leaving ? 'save-toast-leaving' : ''}`} onAnimationEnd={(event) => {
+      if (event.target === event.currentTarget && event.animationName === 'save-toast-exit' && leaving) setNotice(null);
+    }} role={failed ? 'alert' : 'status'} aria-live={failed ? 'assertive' : 'polite'} aria-atomic="true">
       <span className="save-toast-icon">{failed ? <Circle size={20} /> : <CheckCircle2 size={20} />}</span>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-bold">{failed ? '保存失败，请重试' : '保存成功'}</p>
-        <p className="mt-1 break-words text-xs leading-5">{detail}</p>
+        <p className="mt-1 break-words text-xs leading-5">{notice.detail}</p>
       </div>
-      <button type="button" className="save-toast-close" onClick={() => setDismissed(true)} aria-label="关闭保存提示"><X size={16} /></button>
+      <button type="button" className="save-toast-close" disabled={leaving} onClick={() => setLeaving(true)} aria-label="关闭保存提示"><X size={16} /></button>
     </div>
   );
 }
