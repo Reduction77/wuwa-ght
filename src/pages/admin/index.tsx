@@ -782,18 +782,17 @@ function SaveBar() {
           {canUndo && <button type="button" onClick={undo} disabled={saving} className="save-action save-action-secondary" aria-label="撤销上一步" title="撤销上一步"><RotateCcw size={15} /></button>}
         </div>
       </aside>
-      {(saving || saveState === 'saved' || failed) && (
-        <SaveToast key={`${saveState}-${data.updatedAt}`} state={saveState} detail={failed ? saveError : saving ? `正在同步到${destination}` : github && !serverMode ? '约 1～2 分钟后页面生效' : `改动已保存到${destination}`} />
+      {(saveState === 'saved' || saveState === 'error') && (
+        <SaveToast key={saveState} state={saveState} detail={failed ? saveError : github && !serverMode ? '约 1～2 分钟后页面生效' : `改动已保存到${destination}`} />
       )}
     </>,
     document.body
   );
 }
 
-function SaveToast({ state, detail }: { state: string; detail: string }) {
+function SaveToast({ state, detail }: { state: 'saved' | 'error'; detail: string }) {
   const [dismissed, setDismissed] = useState(false);
   const failed = state === 'error';
-  const saving = state === 'saving';
   useEffect(() => {
     if (state !== 'saved') return;
     const timer = window.setTimeout(() => setDismissed(true), 3500);
@@ -802,9 +801,9 @@ function SaveToast({ state, detail }: { state: string; detail: string }) {
   if (dismissed) return null;
   return (
     <div className={`save-toast ${failed ? 'save-toast-error' : ''}`} role={failed ? 'alert' : 'status'} aria-live={failed ? 'assertive' : 'polite'} aria-atomic="true">
-      <span className="save-toast-icon">{saving ? <RefreshCw size={20} className="animate-spin" /> : failed ? <Circle size={20} /> : <CheckCircle2 size={20} />}</span>
+      <span className="save-toast-icon">{failed ? <Circle size={20} /> : <CheckCircle2 size={20} />}</span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold">{saving ? '正在保存…' : failed ? '保存失败，请重试' : '保存成功'}</p>
+        <p className="text-sm font-bold">{failed ? '保存失败，请重试' : '保存成功'}</p>
         <p className="mt-1 break-words text-xs leading-5">{detail}</p>
       </div>
       <button type="button" className="save-toast-close" onClick={() => setDismissed(true)} aria-label="关闭保存提示"><X size={16} /></button>
