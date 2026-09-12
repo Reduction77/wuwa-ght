@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { addDays, bossStats, currentWeekIndex, cycleEndDate, daysLeftInCycle, fmtCN, todayStr, weekRange } from '@/lib/dates';
 import { emptyBoss, makePasscode, normalizeSiteData, useStore } from '@/lib/store';
@@ -6,7 +6,7 @@ import { testConnection, type GithubConfig } from '@/lib/github';
 import { checkAdminKey, cleanupServerImages } from '@/lib/server';
 import { TIER_LABEL, tierServices, type Boss, type SiteData } from '@/types';
 import BossEditor from './BossEditor';
-import { Archive, ArchiveRestore, ArrowLeft, BellRing, CheckCircle2, Circle, CloudUpload, Download, Github, KeyRound, Plus, RefreshCw, RotateCcw, Search, Trash2, Unplug, Upload } from 'lucide-react';
+import { Archive, ArchiveRestore, ArrowLeft, BellRing, CheckCircle2, Circle, CloudUpload, Download, Github, KeyRound, Plus, RefreshCw, RotateCcw, Search, Trash2, Unplug, Upload, X } from 'lucide-react';
 
 interface Props {
   onBack: () => void;
@@ -63,7 +63,7 @@ export default function Admin({ onBack }: Props) {
   }
 
   return (
-    <div className="admin-shell view-swap mx-auto max-w-6xl px-5 pb-36">
+    <div className="admin-shell admin-workspace view-swap mx-auto max-w-6xl px-5 pb-36">
       <header className="flex flex-wrap items-center justify-between gap-3 py-6">
         <div className="flex items-center gap-3">
           <button type="button" onClick={onBack} className="btn-ghost !px-4 !py-2 text-xs">
@@ -197,7 +197,7 @@ export default function Admin({ onBack }: Props) {
           ) : (
             <div className="paper-card flex h-64 flex-col items-center justify-center text-center">
               <p className="font-display text-xl" style={{ color: '#22405c' }}>点左边一位老板开始登记</p>
-              <p className="mt-2 text-sm" style={{ color: '#8aa2b8' }}>登记完别忘了点底部的「保存」哦</p>
+              <p className="mt-2 text-sm" style={{ color: '#8aa2b8' }}>{serverMode ? '登记后会自动保存，可在右侧查看同步状态' : '登记完成后，通过右侧面板保存并同步'}</p>
             </div>
           )}
         </main>
@@ -480,7 +480,7 @@ function VersionResetCard() {
       if (serverMode && adminKey) {
         const saved = await save();
         if (!saved) {
-          alert('版本重置已经暂存在当前页面，但保存到服务器失败，因此没有清理图片。请先处理顶部的保存错误后重试。');
+          alert('版本重置已经暂存在当前页面，但保存到服务器失败，因此没有清理图片。请先处理右侧的保存错误后重试。');
           return;
         }
         try {
@@ -558,9 +558,9 @@ function BackupCard() {
         passcodes.add(boss.passcode);
       }
       const count = normalized.bosses.length;
-      if (!confirm(`备份里有 ${count} 位老板，恢复会覆盖当前全部数据。${serverMode || github ? '记得点底部「保存」让线上也生效。' : '现在是本地模式，恢复内容只存在这个浏览器。'}\n\n确定恢复吗？`)) return;
+      if (!confirm(`备份里有 ${count} 位老板，恢复会覆盖当前全部数据。${serverMode ? '恢复后将自动同步到服务器。' : github ? '记得通过右侧面板保存到 GitHub。' : '现在是本地模式，恢复内容只存在这个浏览器。'}\n\n确定恢复吗？`)) return;
       importData(normalized);
-      setMsg('已恢复到页面，点底部「保存」让它正式生效');
+      setMsg(serverMode ? '已恢复到页面，请在右侧确认自动保存结果' : '已恢复到页面，请通过右侧面板保存');
     } catch {
       setMsg('这个文件不是有效的备份，换一个试试');
     } finally {
@@ -756,33 +756,58 @@ function BossEditorLoader({ bossId }: { bossId: string }) {
   return <BossEditor boss={boss} />;
 }
 
-/* ---------- 底部保存栏 ---------- */
+/* ---------- 右侧保存面板与保存提示 ---------- */
 function SaveBar() {
   const { dirty, save, saveState, saveError, github, serverMode, adminKey, data, undo, canUndo, online } = useStore();
-  const label = useMemo(() => {
-    if (saveState === 'saving') return '保存中…';
-    if (saveState === 'saved') {
-      if (serverMode && adminKey) return '已保存到服务器，老板刷新即可看到 ✓';
-      return github ? '已保存，约1~2分钟后全网生效 ✓' : '已保存到本浏览器 ✓';
-    }
-    if (saveState === 'error') return '保存失败，点我重试';
-    if (serverMode) return adminKey ? '自动保存到服务器' : '保存到本浏览器';
-    return github ? '保存并同步到 GitHub' : '保存到本浏览器';
-  }, [saveState, github, serverMode, adminKey]);
+  const saving = saveState === 'saving';
+  const failed = saveState === 'error';
+  const destination = serverMode && adminKey ? '服务器' : github ? 'GitHub' : '本浏览器';
+  const status = !online ? '当前离线' : saving ? '正在保存' : failed ? '保存失败' : dirty ? '等待保存' : '所有改动已保存';
+  const detail = !online ? '联网后可继续同步' : failed ? saveError : dirty ? '有未保存的改动' : `更新于 ${new Date(data.updatedAt).toLocaleString('zh-CN')}`;
+  const label = saving ? '保存中…' : failed ? '重试保存' : serverMode && adminKey ? '自动保存已开启' : `保存到${destination}`;
 
+  // 放到 body 下，避免页面入场动画的 transform 改变 fixed 定位参照。
+  return createPortal(
+    <>
+      <aside className="save-dock" aria-label="保存与同步">
+        <div className="flex items-center gap-2 text-sm font-bold">
+          <span className={`h-2 w-2 shrink-0 rounded-full ${failed ? 'bg-[#e05548]' : !online || dirty ? 'bg-[#f2a93b]' : 'bg-[#2fbf8f]'}`} />
+          {status}
+        </div>
+        <p className={`save-dock-detail ${failed ? 'text-[#c64f46]' : 'text-[#6989a7]'}`}>{detail}</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={() => void save()} disabled={saving || !online} className="save-action flex-1">
+            <CloudUpload size={15} /> {label}
+          </button>
+          {canUndo && <button type="button" onClick={undo} disabled={saving} className="save-action save-action-secondary" aria-label="撤销上一步" title="撤销上一步"><RotateCcw size={15} /></button>}
+        </div>
+      </aside>
+      {(saving || saveState === 'saved' || failed) && (
+        <SaveToast key={`${saveState}-${data.updatedAt}`} state={saveState} detail={failed ? saveError : saving ? `正在同步到${destination}` : github && !serverMode ? '约 1～2 分钟后页面生效' : `改动已保存到${destination}`} />
+      )}
+    </>,
+    document.body
+  );
+}
+
+function SaveToast({ state, detail }: { state: string; detail: string }) {
+  const [dismissed, setDismissed] = useState(false);
+  const failed = state === 'error';
+  const saving = state === 'saving';
+  useEffect(() => {
+    if (state !== 'saved') return;
+    const timer = window.setTimeout(() => setDismissed(true), 3500);
+    return () => window.clearTimeout(timer);
+  }, [state]);
+  if (dismissed) return null;
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 flex justify-center px-4 pb-4">
-      <div className="paper-card flex w-full max-w-3xl items-center gap-2 !rounded-2xl px-3 py-2.5 sm:gap-3 sm:!rounded-full sm:px-5 sm:py-3" style={{ boxShadow: 'var(--shadow-md)' }}>
-        <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dirty ? 'bg-[#f2a93b]' : 'bg-[#2fbf8f]'}`} />
-        <span className="hidden flex-1 truncate text-xs font-semibold text-[var(--ink-soft)] sm:block">
-          {!online ? '当前离线，改动已暂存在本机，联网后会自动同步' : dirty ? '有未保存的改动' : `所有改动已保存 · 更新于 ${new Date(data.updatedAt).toLocaleString('zh-CN')}`}
-          {saveState === 'error' && <span style={{ color: '#e05548' }}>（{saveError}）</span>}
-        </span>
-        {canUndo && <button type="button" onClick={undo} disabled={saveState === 'saving'} className="btn-ghost !px-3 !py-2 text-xs sm:!px-4"><RotateCcw size={14} /> <span className="hidden sm:inline">撤销上一步</span></button>}
-        <button type="button" onClick={save} disabled={saveState === 'saving'} className="btn-primary flex-1 !px-4 !py-2 text-sm sm:flex-none sm:!px-5">
-          <CloudUpload size={15} /> <span className="sm:hidden">{saveState === 'saving' ? '保存中…' : saveState === 'error' ? '重试' : '保存'}</span><span className="hidden sm:inline">{label}</span>
-        </button>
+    <div className={`save-toast ${failed ? 'save-toast-error' : ''}`} role={failed ? 'alert' : 'status'} aria-live={failed ? 'assertive' : 'polite'} aria-atomic="true">
+      <span className="save-toast-icon">{saving ? <RefreshCw size={20} className="animate-spin" /> : failed ? <Circle size={20} /> : <CheckCircle2 size={20} />}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold">{saving ? '正在保存…' : failed ? '保存失败，请重试' : '保存成功'}</p>
+        <p className="mt-1 break-words text-xs leading-5">{detail}</p>
       </div>
+      <button type="button" className="save-toast-close" onClick={() => setDismissed(true)} aria-label="关闭保存提示"><X size={16} /></button>
     </div>
   );
 }

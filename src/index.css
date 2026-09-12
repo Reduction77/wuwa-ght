@@ -287,6 +287,65 @@ select.input-soft option { color: var(--ink); }
 .admin-shell .input-soft { border-radius: 0.65rem; background-color: #f7fafb; }
 .admin-shell header { border-bottom: 1px solid var(--line); margin-bottom: 1rem; }
 
+/* 保存工具独立于页面动画，固定在视口右侧。 */
+.save-dock, .save-toast {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  border: 1px solid #b8d8f5;
+  border-radius: 1rem;
+  background: #f6fbff;
+  color: #2a648f;
+  box-shadow: 0 8px 28px -12px rgba(55, 124, 178, 0.3);
+}
+.save-dock {
+  z-index: 40;
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  width: min(15.5rem, calc(100vw - 2rem));
+  padding: 1rem;
+}
+.save-dock-detail { margin-top: 0.4rem; font-size: 0.7rem; line-height: 1.6; overflow-wrap: anywhere; max-height: 6rem; overflow-y: auto; }
+.save-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid #b8d8f5;
+  border-radius: 0.75rem;
+  background: #e7f3ff;
+  color: #2a7fd4;
+  font-size: 0.75rem;
+  font-weight: 700;
+  transition: background 160ms ease;
+}
+.save-action:hover:not(:disabled) { background: #d8ecff; }
+.save-action:disabled { opacity: 0.65; cursor: default; }
+.save-action-secondary { background: white; }
+.save-toast {
+  z-index: 60;
+  top: calc(1rem + env(safe-area-inset-top));
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: min(23rem, calc(100vw - 2rem));
+  padding: 1rem;
+  animation: save-toast-enter 240ms ease-out both;
+}
+.save-toast-icon { display: flex; padding: 0.5rem; border-radius: 50%; color: #2a7fd4; background: #e1f0ff; }
+.save-toast-error { border-color: #f0c7c3; color: #a74c44; background: #fff8f7; }
+.save-toast-error .save-toast-icon { background: #ffebe8; color: #c65448; }
+.save-toast-close { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: 0.5rem; }
+.save-toast-close:hover { background: #e7f3ff; }
+@keyframes save-toast-enter {
+  from { opacity: 0; transform: translateX(32px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.admin-workspace { padding-bottom: 14rem; }
+@media (min-width: 1280px) {
+  .admin-workspace { width: calc(100% - 18rem); margin-right: 18rem; }
+}
+
 ::selection { background: rgba(36, 184, 189, 0.25); }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
