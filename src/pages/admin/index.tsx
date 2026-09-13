@@ -347,8 +347,13 @@ function RenewReminder({ onSelect }: { onSelect: (id: string) => void }) {
               </span>
               <span style={{ color: '#b9a276' }}>{fmtCN(cycleEndDate(b))} 截止</span>
               <button type="button" className="rounded-full bg-[#eef5fc] px-2 py-1 text-[11px] text-[#2a7fd4]" onClick={() => {
-                const when = expired ? `已经到期 ${-left} 天` : left === 0 ? '今天到期' : `还有 ${left} 天到期`;
-                void navigator.clipboard.writeText(`${b.name}老板你好～你的鸣潮托管周期${when}，需要续期的话跟我说一声就好。`);
+                const hour = Number(new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+                const greeting = hour < 6 || hour >= 18 ? '晚上好' : hour < 11 ? '早上好' : hour < 14 ? '中午好' : '下午好';
+                const daysLeft = daysLeftInCycle(b);
+                const when = daysLeft < 0 ? `已经到期${-daysLeft}天啦` : daysLeft === 0 ? '今天到期啦' : `还有${daysLeft}天到期啦`;
+                const name = b.name.trim();
+                const salutation = name.endsWith('老板') ? name : `${name}老板`;
+                void navigator.clipboard.writeText(`${salutation}${greeting}呀～您的鸣潮托管周期${when}！需要续期的话，跟我说一声就好哦～✨`);
               }}>复制提醒</button>
               <select className="rounded-full border border-[#ead8b4] bg-white px-2 py-1 text-[11px]" value={b.renewalState} onChange={(e) => mutateBoss(b.id, (boss) => ({ ...boss, renewalState: e.target.value as Boss['renewalState'] }))}>
                 <option value="none">未处理</option>
