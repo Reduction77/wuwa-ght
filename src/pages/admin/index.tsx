@@ -6,6 +6,7 @@ import { testConnection, type GithubConfig } from '@/lib/github';
 import { checkAdminKey, cleanupServerImages } from '@/lib/server';
 import { TIER_LABEL, tierServices, type Boss, type SiteData } from '@/types';
 import BossEditor from './BossEditor';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
 import { Archive, ArchiveRestore, ArrowLeft, BellRing, CheckCircle2, Circle, CloudUpload, Download, Github, KeyRound, Plus, RefreshCw, RotateCcw, Search, Trash2, Unplug, Upload, X } from 'lucide-react';
 
 interface Props {
@@ -64,7 +65,7 @@ export default function Admin({ onBack }: Props) {
 
   return (
     <div className="admin-shell admin-workspace view-swap mx-auto max-w-6xl px-5 pb-36">
-      <header className="flex flex-wrap items-center justify-between gap-3 py-6">
+      <header className="relative z-40 flex flex-wrap items-center justify-between gap-3 py-6">
         <div className="flex items-center gap-3">
           <button type="button" onClick={onBack} className="btn-ghost !px-4 !py-2 text-xs">
             <ArrowLeft size={14} /> 首页
@@ -95,6 +96,7 @@ export default function Admin({ onBack }: Props) {
           <button type="button" className="btn-ghost !px-4 !py-2 text-xs" onClick={() => store.reload()}>
             <RefreshCw size={14} className={store.loading ? 'animate-spin' : ''} /> 重新读取
           </button>
+          <ThemeSwitcher />
         </div>
       </header>
 
@@ -851,6 +853,7 @@ function LoginGate({ onBack, onConnected, onKey }: { onBack: () => void; onConne
   if (serverMode) {
     return (
       <div className="admin-shell view-swap mx-auto flex min-h-[85vh] max-w-lg flex-col justify-center px-5 pb-24">
+        <div className="relative z-40 mb-3 flex justify-end"><ThemeSwitcher /></div>
         <div className="paper-card rise-in px-7 py-8">
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: 'linear-gradient(135deg,#45a9ff,#1e8bf0)' }}>
             <KeyRound size={26} />
@@ -900,6 +903,7 @@ function LoginGate({ onBack, onConnected, onKey }: { onBack: () => void; onConne
 
   return (
     <div className="admin-shell view-swap mx-auto flex min-h-[85vh] max-w-lg flex-col justify-center px-5 pb-24">
+      <div className="relative z-40 mb-3 flex justify-end"><ThemeSwitcher /></div>
       <div className="paper-card rise-in px-7 py-8">
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: 'linear-gradient(135deg,#45a9ff,#1e8bf0)' }}>
           <Github size={26} />

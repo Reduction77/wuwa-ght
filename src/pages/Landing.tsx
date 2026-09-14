@@ -1,4 +1,5 @@
 import { siteConfig } from '@/siteConfig';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
 import { useStore } from '@/lib/store';
 import {
   ArrowRight,
@@ -34,7 +35,7 @@ export default function Landing({ onGoBoss, onGoAdmin }: Props) {
 
   return (
     <div className="mx-auto max-w-6xl px-5 pb-20">
-      <header className="rise-in flex items-center justify-between py-5 sm:py-6">
+      <header className="rise-in relative z-40 flex flex-wrap items-center justify-between gap-3 py-5 sm:py-6">
         <div className="flex items-center gap-2.5">
           <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#79c5ff] to-[#45a9ff] text-xl text-white shadow-md">🍓</span>
           <div>
@@ -42,7 +43,10 @@ export default function Landing({ onGoBoss, onGoAdmin }: Props) {
             <p className="mt-0.5 text-[10px] font-bold tracking-[0.16em] text-[var(--muted-text)]">{siteConfig.brandSuffix}</p>
           </div>
         </div>
-        <button type="button" onClick={onGoAdmin} className="btn-ghost !px-4 !py-2 text-xs">托管后台</button>
+        <div className="flex items-center gap-2">
+          <ThemeSwitcher />
+          <button type="button" onClick={onGoAdmin} className="btn-ghost !px-4 !py-2 text-xs">托管后台</button>
+        </div>
       </header>
 
       <section className="resonance-panel rise-in rise-in-1 mt-4 grid gap-8 px-6 py-8 sm:px-9 sm:py-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-12 lg:py-12">

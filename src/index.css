@@ -78,9 +78,8 @@
   }
 }
 
-/* CSS follows OS changes immediately, including before React loads. */
-@media (prefers-color-scheme: dark) {
-  :root {
+/* Resolved before first paint; supports explicit choice and OS preference. */
+  :root[data-theme="dark"] {
     color-scheme: dark;
     --background: 213 40% 8%;
     --foreground: 207 45% 91%;
@@ -140,9 +139,40 @@
     --shadow-sm: 0 8px 24px -18px rgba(0, 0, 0, 0.65);
     --shadow-md: 0 18px 50px -28px rgba(0, 0, 0, 0.75);
   }
-}
-
 html { scroll-behavior: smooth; }
+
+/* The popover sits above neighboring animated cards, within the page header. */
+.theme-switcher { position: relative; flex-shrink: 0; }
+.theme-options {
+  position: absolute;
+  z-index: 45;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: 10.5rem;
+  padding: 0.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: 0.85rem;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-md);
+}
+.theme-options button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.55rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: left;
+}
+.theme-options button span { flex: 1; }
+.theme-options button:hover, .theme-options button[aria-pressed="true"] {
+  background: var(--surface-cyan);
+  color: var(--blue-text);
+}
 
 :focus-visible {
   outline: 3px solid color-mix(in srgb, var(--signal) 45%, transparent);

@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#f3f9ff" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#0d1520" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f3f9ff" />
+    <script>
+      // Apply the saved choice before first paint, avoiding a light/dark flash.
+      (() => {
+        let preference = 'system';
+        try { preference = localStorage.getItem('wuwa-theme') || 'system'; } catch {}
+        const dark = preference === 'dark' || (preference !== 'light' && matchMedia('(prefers-color-scheme: dark)').matches);
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.querySelector('meta[name="theme-color"]').content = dark ? '#0d1520' : '#f3f9ff';
+      })();
+    </script>
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

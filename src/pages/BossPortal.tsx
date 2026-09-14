@@ -3,6 +3,7 @@ import { normalizeSiteData, useStore } from '@/lib/store';
 import { changePasscode, loginBoss, logoutBoss, readBossSession } from '@/lib/server';
 import { siteConfig } from '@/siteConfig';
 import BossProgress from '@/components/BossProgress';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
 import type { Boss } from '@/types';
 import { ArrowLeft, KeyRound, LogOut, RefreshCw } from 'lucide-react';
 
@@ -93,11 +94,12 @@ export default function BossPortal({ onBack }: Props) {
   if (boss) {
     return (
       <div className="boss-shell view-swap mx-auto max-w-5xl px-5 pb-24">
-        <header className="boss-topbar flex items-center justify-between gap-2 py-5">
+        <header className="boss-topbar relative z-40 flex flex-wrap items-center justify-between gap-2 py-5">
           <button type="button" onClick={onBack} className="btn-ghost !px-4 !py-2 text-xs">
             <ArrowLeft size={14} /> 返回首页
           </button>
           <div className="flex items-center gap-2">
+            <ThemeSwitcher />
             <button type="button" onClick={refreshBoss} className="btn-ghost !px-4 !py-2 text-xs" title="刷新最新进度">
               <RefreshCw size={14} className={loading || busy ? 'animate-spin' : ''} /> 刷新
             </button>
@@ -128,6 +130,7 @@ export default function BossPortal({ onBack }: Props) {
   /* ---------- 口令输入 ---------- */
   return (
     <div className="boss-shell view-swap mx-auto flex min-h-[80vh] max-w-md flex-col justify-center px-5 pb-24">
+      <div className="relative z-40 mb-3 flex justify-end"><ThemeSwitcher /></div>
       <div className="paper-card rise-in px-6 py-8 text-center sm:px-7 sm:py-9" style={shake ? { animation: 'wiggle 0.12s ease-in-out 4' } : undefined}>
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: 'linear-gradient(135deg,var(--signal),var(--signal-strong))' }}>
           <KeyRound size={26} />
