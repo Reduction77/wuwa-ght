@@ -1,5 +1,26 @@
 import type { Boss, CycleSnapshot } from '@/types';
 
+/** 后台截止提醒只统计实际承接的活动，不受老板端可见开关影响。 */
+export function upcomingServiceEvents(boss: Boss, today: string, through: string) {
+  const events = [
+    ...(boss.services.bigEvent ? [boss.bigEvent] : []),
+    ...(boss.services.smallEvents ? boss.smallEvents : []),
+  ];
+  return events.filter(event => !event.done && event.deadline && event.deadline >= today && event.deadline <= through);
+}
+
+export type ResettableChallenge = 'tower' | 'sea';
+
+/** 独立挑战换期只撤销这一项的完成状态，不更改服务开关及其他记录。 */
+export function resetBossChallengeProgress(boss: Boss, kind: ResettableChallenge): Boss {
+  const challenge = boss.challenges[kind];
+  if (!challenge.enabled || !challenge.done) return boss;
+  return {
+    ...boss,
+    challenges: { ...boss.challenges, [kind]: { ...challenge, done: false } },
+  };
+}
+
 export function renewBossForDate(boss: Boss, today: string, id = `cycle-${Date.now()}`): Boss {
   const snapshot: CycleSnapshot = {
     id,

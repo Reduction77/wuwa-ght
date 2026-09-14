@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { resetBossChallengeProgress, upcomingServiceEvents, type ResettableChallenge } from '@/lib/boss-rules';
 import { addDays, bossStats, currentWeekIndex, cycleEndDate, daysLeftInCycle, fmtCN, todayStr, weekRange } from '@/lib/dates';
 import { emptyBoss, makePasscode, normalizeSiteData, useStore } from '@/lib/store';
 import { testConnection, type GithubConfig } from '@/lib/github';
@@ -104,6 +105,8 @@ export default function Admin({ onBack }: Props) {
       <div className="mb-5 grid gap-4 md:grid-cols-2">
         <AcceptingCard />
         <VersionResetCard />
+        <ChallengeResetCard kind="tower" label="深塔" />
+        <ChallengeResetCard kind="sea" label="海墟" />
         <div className="md:col-span-2">
           <BackupCard />
         </div>
@@ -269,7 +272,7 @@ function TodayWorkbench({ onSelect }: { onSelect: (id: string) => void }) {
             const weekIndex = currentWeekIndex(boss);
             const weekKey = weekIndex >= 0 ? weekRange(boss, weekIndex).from : '';
             const weeklyDone = !!weekKey && boss.weekly.includes(weekKey);
-            const eventDeadlines = [boss.bigEvent, ...boss.smallEvents].filter((event) => !event.done && event.deadline && event.deadline >= today && event.deadline <= addDays(today, 3));
+            const eventDeadlines = upcomingServiceEvents(boss, today, addDays(today, 3));
             return (
               <div key={boss.id} className={`grid grid-cols-1 items-center gap-2 rounded-xl border px-3 py-3 sm:grid-cols-[minmax(140px,1fr)_140px_140px_100px] sm:gap-3 sm:px-4 ${boss.issue.kind !== 'none' ? 'border-[var(--warning-border)] bg-[var(--warning-surface)]' : 'border-[var(--line)] bg-[var(--surface)]'}`}>
                 <button type="button" className="min-w-0 text-left" onClick={() => onSelect(boss.id)}>
@@ -511,10 +514,48 @@ function VersionResetCard() {
         <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>游戏版本更新</p>
         <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: 'var(--muted-text)' }}>
           当前：{data.gameVersion?.name || '未设置'}；日期不固定，由你更新当天手动重置
+          <br />深塔、海墟进度保留，换期时使用下方独立重置
         </p>
       </div>
       <button type="button" disabled={activeCount === 0 || resetting} onClick={() => void reset()} className="btn-ghost !px-4 !py-2 text-xs shrink-0">
         {resetting ? '正在重置…' : `重置 ${activeCount} 位`}
+      </button>
+    </div>
+  );
+}
+
+/* ---------- 深塔 / 海墟独立换期，不跟随游戏版本重置 ---------- */
+function ChallengeResetCard({ kind, label }: { kind: ResettableChallenge; label: string }) {
+  const { data, mutateBosses, saveState, serverMode, adminKey } = useStore();
+  const today = todayStr();
+  const targets = data.bosses.filter(boss =>
+    !boss.archived && boss.startDate <= today && cycleEndDate(boss) >= today &&
+    boss.challenges[kind].enabled && boss.challenges[kind].done
+  );
+
+  const reset = () => {
+    if (!targets.length || saveState === 'saving') return;
+    if (!confirm(
+      `确定重置${label}进度吗？\n\n将影响 ${targets.length} 位当前托管中、已开启${label}且已完成的老板：\n${targets.map(boss => boss.name || '未命名老板').join('、')}\n\n只将${label}改为“未完成”，不关闭服务项目。\n另一项挑战、日常、周常、版本活动、游戏版本信息及历史记录全部保留。\n已归档、已到期、尚未开始或未开启此项目的账号不受影响。\n${serverMode && adminKey ? '确认后将自动保存到服务器。' : '确认后请通过右侧保存按钮同步。'}如需恢复，可点击右侧“撤销上一步”。`
+    )) return;
+    mutateBosses(targets.map(boss => boss.id), boss => resetBossChallengeProgress(boss, kind), {
+      action: `${label}独立重置`, detail: `${today} · 完成状态改为未完成`,
+    });
+  };
+
+  return (
+    <div className="paper-card flex items-center gap-4 px-5 py-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--surface-cyan)', color: 'var(--blue-text)' }}>
+        <RotateCcw size={18} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold text-[var(--ink)]">{label}重置</p>
+        <p className="mt-0.5 text-[11px] leading-relaxed text-[var(--muted-text)]">
+          换期时手动重置；仅清除托管中已开启项目的完成状态，其他记录不变
+        </p>
+      </div>
+      <button type="button" onClick={reset} disabled={!targets.length || saveState === 'saving'} aria-label={`重置${label}（${targets.length} 位）`} className="btn-ghost shrink-0 !px-4 !py-2 text-xs">
+        {targets.length ? `重置 ${targets.length} 位` : '无需重置'}
       </button>
     </div>
   );
