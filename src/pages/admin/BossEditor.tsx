@@ -52,10 +52,10 @@ export default function BossEditor({ boss }: Props) {
     <div className="space-y-5">
       {/* 已到期提示 + 同版本续期 */}
       {ended && (
-        <div className="paper-card flex flex-wrap items-center gap-3 px-6 py-5" style={{ background: 'rgba(250,246,255,0.92)', borderColor: '#e2d5f8' }}>
+        <div className="paper-card flex flex-wrap items-center gap-3 px-6 py-5" style={{ background: 'var(--purple-soft)', borderColor: 'var(--purple-border)' }}>
           <div className="mr-auto">
-            <p className="font-display text-lg" style={{ color: '#5b3f8f' }}>本周期已到期</p>
-            <p className="text-xs" style={{ color: '#9a86bd' }}>同一版本内续费时，从今天开始新的日常周期；只清空日常打卡，本周周常、活动和挑战状态全部保留</p>
+            <p className="font-display text-lg" style={{ color: 'var(--purple)' }}>本周期已到期</p>
+            <p className="text-xs" style={{ color: 'var(--purple)' }}>同一版本内续费时，从今天开始新的日常周期；只清空日常打卡，本周周常、活动和挑战状态全部保留</p>
           </div>
           <button
             type="button"
@@ -75,8 +75,8 @@ export default function BossEditor({ boss }: Props) {
       {/* 今日快捷登记 */}
       <div className="paper-card flex flex-wrap items-center gap-3 px-6 py-5">
         <div className="mr-auto">
-          <p className="font-display text-lg" style={{ color: '#22405c' }}>今日快捷登记</p>
-          <p className="text-xs" style={{ color: '#8aa2b8' }}>每天点这两下就完事；每日记录按北京时间凌晨 4 点刷新</p>
+          <p className="font-display text-lg" style={{ color: 'var(--ink)' }}>今日快捷登记</p>
+          <p className="text-xs" style={{ color: 'var(--muted-text)' }}>每天点这两下就完事；每日记录按北京时间凌晨 4 点刷新</p>
         </div>
         <button
           type="button"
@@ -99,12 +99,12 @@ export default function BossEditor({ boss }: Props) {
             {weekDone ? '本周周常已清 ✓ 点我撤销' : `打卡：本周周常已清（第 ${curWeekIdx + 1} 周）`}
           </button>
         )}
-        {!canQuickLog && <p className="w-full text-right text-[11px] font-semibold text-[#d18d1f]">{boss.issue.kind === 'paused' ? '当前已暂停托管，快捷登记已锁定' : notStarted ? '托管周期尚未开始' : '周期已结束，请先续期再登记'}</p>}
+        {!canQuickLog && <p className="w-full text-right text-[11px] font-semibold text-[var(--warning)]">{boss.issue.kind === 'paused' ? '当前已暂停托管，快捷登记已锁定' : notStarted ? '托管周期尚未开始' : '周期已结束，请先续期再登记'}</p>}
       </div>
 
       {/* 基本设置 */}
       <section className="paper-card px-6 py-6">
-        <h3 className="font-display text-lg" style={{ color: '#22405c' }}>老板信息与套餐</h3>
+        <h3 className="font-display text-lg" style={{ color: 'var(--ink)' }}>老板信息与套餐</h3>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="老板称呼">
             <input className="input-soft" value={boss.name} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, name: e.target.value }))} />
@@ -114,7 +114,7 @@ export default function BossEditor({ boss }: Props) {
           </Field>
           <Field label="查看口令（默认手机后四位，老板想要自定义就直接改）">
             <input className="input-soft font-bold tracking-widest" value={boss.passcode} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, passcode: e.target.value.trim() }))} />
-            {duplicatePasscode && <span className="mt-1 block text-xs font-bold text-[#e05548]">口令与其他老板重复，保存会被阻止</span>}
+            {duplicatePasscode && <span className="mt-1 block text-xs font-bold text-[var(--danger)]">口令与其他老板重复，保存会被阻止</span>}
           </Field>
           <Field label="托管套餐">
             <select className="input-soft" value={boss.tier} onChange={(e) => mutateBoss(boss.id, (b) => {
@@ -147,15 +147,15 @@ export default function BossEditor({ boss }: Props) {
         <Field label="标签（用逗号分隔）" className="mt-3">
           <input className="input-soft" placeholder="长期客户, 材料优先, 需要验证码" value={boss.tags.join(', ')} onChange={(e) => mutateBoss(boss.id, (b) => ({ ...b, tags: e.target.value.split(/[,，]/).map((tag) => tag.trim()).filter(Boolean) }))} />
         </Field>
-        <div className="mt-4 rounded-2xl border border-[#d9e9f9] bg-[#f8fbff] p-4">
-          <p className="text-sm font-bold" style={{ color: '#22405c' }}>实际服务项目</p>
-          <p className="mt-1 text-[11px]" style={{ color: '#8aa2b8' }}>套餐只是模板，这里可以按老板的真实订单单独增减</p>
+        <div className="mt-4 rounded-2xl border border-[var(--line)] bg-[var(--surface-soft)] p-4">
+          <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>实际服务项目</p>
+          <p className="mt-1 text-[11px]" style={{ color: 'var(--muted-text)' }}>套餐只是模板，这里可以按老板的真实订单单独增减</p>
           <div className="mt-3 flex flex-wrap gap-2">
             {([
               ['daily', '每日体力'], ['weekly', '每周周常'], ['bigEvent', '版本大活动'], ['smallEvents', '版本小活动'],
             ] as const).map(([key, label]) => (
               <button key={key} type="button" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, services: { ...b.services, [key]: !b.services[key] } }))}
-                className="chip" style={boss.services[key] ? { background: '#d6f4e7', color: '#1d9e74' } : { background: '#eef3f9', color: '#8aa2b8' }}>
+                className="chip" style={boss.services[key] ? { background: 'var(--success-soft)', color: 'var(--success)' } : { background: 'var(--surface-soft)', color: 'var(--muted-text)' }}>
                 {boss.services[key] ? '✓ ' : ''}{label}
               </button>
             ))}
@@ -191,8 +191,8 @@ export default function BossEditor({ boss }: Props) {
       <section className="paper-card px-6 py-6">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <h3 className="font-display text-lg" style={{ color: '#22405c' }}>每日体力登记</h3>
-            <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>点格子即可补登 / 撤销，蓝色 = 已清</p>
+            <h3 className="font-display text-lg" style={{ color: 'var(--ink)' }}>每日体力登记</h3>
+            <p className="mt-1 text-xs" style={{ color: 'var(--muted-text)' }}>点格子即可补登 / 撤销，蓝色 = 已清</p>
           </div>
           <ShowSwitch
             on={boss.show.daily}
@@ -206,8 +206,8 @@ export default function BossEditor({ boss }: Props) {
 
       {/* 临时加项 */}
       <section className="paper-card px-6 py-6">
-        <h3 className="font-display text-lg" style={{ color: '#22405c' }}>临时加项</h3>
-        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>记录抽卡、临时刷材料等不属于固定套餐的一次性任务</p>
+        <h3 className="font-display text-lg" style={{ color: 'var(--ink)' }}>临时加项</h3>
+        <p className="mt-1 text-xs" style={{ color: 'var(--muted-text)' }}>记录抽卡、临时刷材料等不属于固定套餐的一次性任务</p>
         <div className="mt-4 flex gap-2">
           <input className="input-soft" placeholder="输入任务名称" value={newTaskName} onChange={(e) => setNewTaskName(e.target.value)} onKeyDown={(e) => {
             if (e.key !== 'Enter' || !newTaskName.trim()) return;
@@ -221,27 +221,27 @@ export default function BossEditor({ boss }: Props) {
         </div>
         <div className="mt-3 space-y-2">
           {boss.extraTasks.map((task) => (
-            <div key={task.id} className="flex items-center gap-3 rounded-xl border border-[#d9e9f9] bg-white px-4 py-3">
+            <div key={task.id} className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
               <button type="button" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, extraTasks: b.extraTasks.map((item) => item.id === task.id ? { ...item, done: !item.done, doneAt: !item.done ? new Date().toISOString() : undefined } : item) }))}>
-                {task.done ? <CheckCircle2 size={20} className="text-[#2fbf8f]" /> : <Circle size={20} className="text-[#b9d2e8]" />}
+                {task.done ? <CheckCircle2 size={20} className="text-[#2fbf8f]" /> : <Circle size={20} className="text-[var(--line-strong)]" />}
               </button>
-              <span className={`flex-1 text-sm font-bold ${task.done ? 'line-through text-[#8aa2b8]' : 'text-[#2b3f54]'}`}>{task.name}</span>
-              <button type="button" className="text-xs font-bold text-[#7e96ad]" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, extraTasks: b.extraTasks.map((item) => item.id === task.id ? { ...item, visible: !item.visible } : item) }))}>{task.visible ? '老板可见' : '仅后台'}</button>
-              <button type="button" aria-label="删除临时任务" className="text-[#e05548]" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, extraTasks: b.extraTasks.filter((item) => item.id !== task.id) }))}><Trash2 size={15} /></button>
+              <span className={`flex-1 text-sm font-bold ${task.done ? 'line-through text-[var(--muted-text)]' : 'text-[var(--ink)]'}`}>{task.name}</span>
+              <button type="button" className="text-xs font-bold text-[var(--muted-text)]" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, extraTasks: b.extraTasks.map((item) => item.id === task.id ? { ...item, visible: !item.visible } : item) }))}>{task.visible ? '老板可见' : '仅后台'}</button>
+              <button type="button" aria-label="删除临时任务" className="text-[var(--danger)]" onClick={() => mutateBoss(boss.id, (b) => ({ ...b, extraTasks: b.extraTasks.filter((item) => item.id !== task.id) }))}><Trash2 size={15} /></button>
             </div>
           ))}
-          {boss.extraTasks.length === 0 && <p className="py-3 text-center text-xs text-[#9db4c9]">暂无临时加项</p>}
+          {boss.extraTasks.length === 0 && <p className="py-3 text-center text-xs text-[var(--muted-text)]">暂无临时加项</p>}
         </div>
       </section>
 
       {boss.cycleHistory.length > 0 && (
         <section className="paper-card px-6 py-6">
-          <h3 className="font-display text-lg" style={{ color: '#22405c' }}>历史托管周期</h3>
+          <h3 className="font-display text-lg" style={{ color: 'var(--ink)' }}>历史托管周期</h3>
           <div className="mt-4 space-y-2">
             {[...boss.cycleHistory].reverse().map((cycle) => (
-              <details key={cycle.id} className="rounded-xl border border-[#d9e9f9] bg-white px-4 py-3">
-                <summary className="cursor-pointer text-sm font-bold text-[#2b3f54]">{fmtCN(cycle.startDate)} 起 · {cycle.cycleDays} 天 · 日常 {cycle.daily.length}/{cycle.cycleDays}</summary>
-                <p className="mt-2 text-xs text-[#7e96ad]">周常完成 {cycle.weekly.length} 周 · 归档于 {new Date(cycle.endedAt + 'T00:00:00').toLocaleDateString('zh-CN')}</p>
+              <details key={cycle.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                <summary className="cursor-pointer text-sm font-bold text-[var(--ink)]">{fmtCN(cycle.startDate)} 起 · {cycle.cycleDays} 天 · 日常 {cycle.daily.length}/{cycle.cycleDays}</summary>
+                <p className="mt-2 text-xs text-[var(--muted-text)]">周常完成 {cycle.weekly.length} 周 · 归档于 {new Date(cycle.endedAt + 'T00:00:00').toLocaleDateString('zh-CN')}</p>
               </details>
             ))}
           </div>
@@ -252,7 +252,7 @@ export default function BossEditor({ boss }: Props) {
       {boss.services.weekly && (
         <section className="paper-card px-6 py-6">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="font-display text-lg" style={{ color: '#22405c' }}>每周周常登记</h3>
+            <h3 className="font-display text-lg" style={{ color: 'var(--ink)' }}>每周周常登记</h3>
             <ShowSwitch
               on={boss.show.weekly}
               onChange={(v) => mutateBoss(boss.id, (b) => ({ ...b, show: { ...b.show, weekly: v } }))}
@@ -269,12 +269,12 @@ export default function BossEditor({ boss }: Props) {
                   onClick={() => toggleWeek(i)}
                   className={[
                     'rounded-xl border px-3 py-2.5 text-center transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md',
-                    done ? 'border-transparent text-white' : 'border-[#d9e9f9] bg-white text-[#7e96ad]',
+                    done ? 'border-transparent text-white' : 'border-[var(--line)] bg-[var(--surface)] text-[var(--muted-text)]',
                   ].join(' ')}
                   style={done ? { background: 'linear-gradient(135deg,#45c6a5,#2fbf8f)' } : undefined}
                 >
                   <p className="text-sm font-extrabold">第 {i + 1} 周</p>
-                  <p className={`mt-0.5 text-[10px] ${done ? 'text-white/85' : 'text-[#9db4c9]'}`}>
+                  <p className={`mt-0.5 text-[10px] ${done ? 'text-white/85' : 'text-[var(--muted-text)]'}`}>
                     {fmtCN(range.from)}~{fmtCN(range.to)}
                   </p>
                   <p className={`mt-1 text-[11px] font-bold ${done ? 'text-white' : ''}`}>{done ? '✓ 已清' : '点我打卡'}</p>
@@ -290,8 +290,8 @@ export default function BossEditor({ boss }: Props) {
         <section className="paper-card px-6 py-6">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 className="font-display text-lg" style={{ color: '#22405c' }}>版本活动登记</h3>
-              <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>点「编辑」可改活动名称和图片；不上传图片时老板端不会留空白框</p>
+              <h3 className="font-display text-lg" style={{ color: 'var(--ink)' }}>版本活动登记</h3>
+              <p className="mt-1 text-xs" style={{ color: 'var(--muted-text)' }}>点「编辑」可改活动名称和图片；不上传图片时老板端不会留空白框</p>
             </div>
             <ShowSwitch
               on={boss.show.bigEvent}
@@ -326,8 +326,8 @@ export default function BossEditor({ boss }: Props) {
 
       {/* 高难挑战：开启后老板才看得见 */}
       <section className="paper-card px-6 py-6">
-        <h3 className="font-display text-lg" style={{ color: '#22405c' }}>高难挑战登记</h3>
-        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>深塔 / 海墟 / 矩阵 / 全息，开启后才会显示在老板的进度页上</p>
+        <h3 className="font-display text-lg" style={{ color: 'var(--ink)' }}>高难挑战登记</h3>
+        <p className="mt-1 text-xs" style={{ color: 'var(--muted-text)' }}>深塔 / 海墟 / 矩阵 / 全息，开启后才会显示在老板的进度页上</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <OptionalRow
             label="终焉矩阵"
@@ -362,8 +362,8 @@ export default function BossEditor({ boss }: Props) {
 
       {/* 可选任务 */}
       <section className="paper-card px-6 py-6">
-        <h3 className="font-display text-lg" style={{ color: '#22405c' }}>其他小委托</h3>
-        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>开启后才会显示在老板的进度页上</p>
+        <h3 className="font-display text-lg" style={{ color: 'var(--ink)' }}>其他小委托</h3>
+        <p className="mt-1 text-xs" style={{ color: 'var(--muted-text)' }}>开启后才会显示在老板的进度页上</p>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <OptionalRow
             label="兑换前瞻兑换码"
@@ -405,7 +405,7 @@ export default function BossEditor({ boss }: Props) {
 function Field({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
   return (
     <label className={`block ${className ?? ''}`}>
-      <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>{label}</span>
+      <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>{label}</span>
       {children}
     </label>
   );
@@ -418,12 +418,12 @@ function ShowSwitch({ on, onChange }: { on: boolean; onChange: (v: boolean) => v
       type="button"
       onClick={() => onChange(!on)}
       className="flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-bold transition-all duration-300"
-      style={on ? { background: '#e7f3ff', borderColor: '#b8d8f5', color: '#2a7fd4' } : { background: '#f6fafe', borderColor: '#e3effc', color: '#9db4c9' }}
+      style={on ? { background: 'var(--surface-cyan)', borderColor: 'var(--line-strong)', color: 'var(--blue-text)' } : { background: 'var(--surface-soft)', borderColor: 'var(--track)', color: 'var(--muted-text)' }}
       title={on ? '老板端现在能看见，点我隐藏' : '老板端现在看不见，点我显示'}
     >
       <span
         className="relative h-4 w-7 rounded-full transition-colors duration-300"
-        style={{ background: on ? '#45a9ff' : '#cfdff0' }}
+        style={{ background: on ? '#45a9ff' : 'var(--track)' }}
       >
         <span
           className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all duration-300"
@@ -437,13 +437,13 @@ function ShowSwitch({ on, onChange }: { on: boolean; onChange: (v: boolean) => v
 
 function OptionalRow({ label, enabled, done, onEnable, onToggle }: { label: string; enabled: boolean; done: boolean; onEnable: (v: boolean) => void; onToggle: () => void }) {
   return (
-    <div className="rounded-2xl border px-4 py-3.5" style={{ background: enabled ? '#fff' : '#f6fafe', borderColor: '#d9e9f9' }}>
+    <div className="rounded-2xl border px-4 py-3.5" style={{ background: enabled ? 'var(--surface)' : 'var(--surface-soft)', borderColor: 'var(--line)' }}>
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={() => onEnable(!enabled)}
           className="relative h-6 w-11 shrink-0 rounded-full transition-colors duration-300"
-          style={{ background: enabled ? '#45a9ff' : '#cfdff0' }}
+          style={{ background: enabled ? '#45a9ff' : 'var(--track)' }}
           aria-label="启用开关"
         >
           <span
@@ -451,13 +451,13 @@ function OptionalRow({ label, enabled, done, onEnable, onToggle }: { label: stri
             style={{ left: enabled ? '22px' : '2px' }}
           />
         </button>
-        <span className="flex-1 font-bold" style={{ color: '#2b3f54' }}>{label}</span>
+        <span className="flex-1 font-bold" style={{ color: 'var(--ink)' }}>{label}</span>
         {enabled && (
-          <button type="button" onClick={onToggle} className="chip transition-transform hover:scale-105" style={done ? { background: '#d6f4e7', color: '#1d9e74' } : { background: '#fdf3e3', color: '#d18d1f' }}>
+          <button type="button" onClick={onToggle} className="chip transition-transform hover:scale-105" style={done ? { background: 'var(--success-soft)', color: 'var(--success)' } : { background: 'var(--warning-soft)', color: 'var(--warning)' }}>
             {done ? '✓ 已完成' : '点我完成'}
           </button>
         )}
-        {!enabled && <span className="chip" style={{ background: '#eef3f9', color: '#9db4c9' }}>未开启</span>}
+        {!enabled && <span className="chip" style={{ background: 'var(--surface-soft)', color: 'var(--muted-text)' }}>未开启</span>}
       </div>
     </div>
   );
@@ -503,7 +503,7 @@ function CycleDaysPicker({ value, onChange }: { value: number; onChange: (days: 
             value={draft}
             onChange={(e) => commit(e.target.value)}
           />
-          <span className="text-xs font-bold" style={{ color: '#5b7a97' }}>天</span>
+          <span className="text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>天</span>
         </span>
       )}
     </div>
@@ -600,12 +600,12 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#22405c]/35 p-4 backdrop-blur-sm" onClick={cancel}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] p-4 backdrop-blur-sm" onClick={cancel}>
       <div className="paper-card view-swap w-full max-w-md px-6 py-6" onClick={(e) => e.stopPropagation()}>
-        <h4 className="font-display text-lg" style={{ color: '#22405c' }}>
+        <h4 className="font-display text-lg" style={{ color: 'var(--ink)' }}>
           编辑{isBig ? '大活动' : `小活动 ${idx + 1}`}
         </h4>
-        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>修改只会暂存在此弹窗，点击“完成”后才会同步到所有老板</p>
+        <p className="mt-1 text-xs" style={{ color: 'var(--muted-text)' }}>修改只会暂存在此弹窗，点击“完成”后才会同步到所有老板</p>
         <Field label="活动名称" className="mt-4">
           <input className="input-soft" value={draft.name} placeholder="输入当前版本的活动名" onChange={(e) => updateDraft({ name: e.target.value })} />
         </Field>
@@ -618,12 +618,12 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
           </Field>
         </div>
         {(dateErr || invalidDateRange) && (
-          <p className="mt-2 rounded-xl border border-[#f4c7c3] bg-[#fff5f4] px-3 py-2 text-xs font-semibold leading-5 text-[#d4473d]" role="alert">
+          <p className="mt-2 rounded-xl border border-[var(--danger-border)] bg-[var(--danger-soft)] px-3 py-2 text-xs font-semibold leading-5 text-[var(--danger)]" role="alert">
             {dateErr || '开放日期不能晚于截止日期，请修改后再继续。'}
           </p>
         )}
         <div className="mt-4">
-          <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>活动图片（可选，不传就不显示图片位）</span>
+          <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>活动图片（可选，不传就不显示图片位）</span>
           {displayImage ? (
             <div className="relative overflow-hidden rounded-2xl">
               <img src={displayImage} alt="活动图预览" className="h-40 w-full object-cover" />
@@ -631,7 +631,7 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
                 type="button"
                 disabled={busy}
                 onClick={removeImage}
-                className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-white/90 px-3 py-1.5 text-xs font-bold text-[#e05548] shadow transition hover:scale-105"
+                className="absolute right-2 top-2 flex items-center gap-1 rounded-full bg-[var(--surface-glass)] px-3 py-1.5 text-xs font-bold text-[var(--danger)] shadow transition hover:scale-105"
               >
                 <Trash2 size={12} /> 移除图片
               </button>
@@ -641,23 +641,23 @@ function EventEditor({ boss, edit, github, onClose }: { boss: Boss; edit: { kind
               type="button"
               disabled={busy}
               onClick={() => fileRef.current?.click()}
-              className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-sm font-bold transition-all duration-300 hover:border-[#45a9ff] hover:bg-[#f0f7ff]"
-              style={{ borderColor: '#cfe3f6', color: '#7e96ad' }}
+              className="flex h-32 w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed text-sm font-bold transition-all duration-300 hover:border-[#45a9ff] hover:bg-[var(--surface-cyan)]"
+              style={{ borderColor: 'var(--line)', color: 'var(--muted-text)' }}
             >
               <ImagePlus size={26} />
               点击选择图片并预览
             </button>
           )}
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && chooseImage(e.target.files[0])} />
-          {err && <p className="mt-2 text-xs font-semibold" style={{ color: '#e05548' }}>{err}</p>}
-          {pendingFile && <p className="mt-2 text-[11px] font-semibold text-[#2a7fd4]">已选择“{pendingFile.name}”，点击“完成”后才会上传并保存。</p>}
+          {err && <p className="mt-2 text-xs font-semibold" style={{ color: 'var(--danger)' }}>{err}</p>}
+          {pendingFile && <p className="mt-2 text-[11px] font-semibold text-[var(--blue-text)]">已选择“{pendingFile.name}”，点击“完成”后才会上传并保存。</p>}
           {!github && !serverMode && (
-            <p className="mt-2 text-[11px]" style={{ color: '#9db4c9' }}>
+            <p className="mt-2 text-[11px]" style={{ color: 'var(--muted-text)' }}>
               未连接 GitHub，图片只保存在当前浏览器；连接后上传的图片会写入仓库，所有人可见。
             </p>
           )}
           {serverMode && (
-            <p className="mt-2 text-[11px]" style={{ color: '#9db4c9' }}>
+            <p className="mt-2 text-[11px]" style={{ color: 'var(--muted-text)' }}>
               图片会存到服务器（数据卷里），上传后所有人可见。
             </p>
           )}

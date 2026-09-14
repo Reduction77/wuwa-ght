@@ -70,10 +70,10 @@ export default function BossProgress({ boss }: Props) {
       <section className="resonance-panel rise-in px-5 py-5 sm:px-7 sm:py-7">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <p className="eyebrow text-[#4f8fbe]">WUTHERING WAVES · 托管进度</p>
+            <p className="eyebrow text-[var(--blue-text)]">WUTHERING WAVES · 托管进度</p>
             <div className="mt-3 flex flex-wrap items-end gap-x-3 gap-y-2">
               <h2 className="font-display text-3xl text-[var(--ink)] sm:text-4xl">{boss.name}</h2>
-              <span className="mb-1 rounded-full border border-[#bedaf0] bg-white/65 px-3 py-1 text-xs font-bold text-[#367caf]">
+              <span className="mb-1 rounded-full border border-[var(--line-strong)] bg-[var(--surface-glass)] px-3 py-1 text-xs font-bold text-[var(--blue-text)]">
                 {TIER_LABEL[boss.tier]}
               </span>
             </div>
@@ -108,15 +108,15 @@ export default function BossProgress({ boss }: Props) {
           />
         </div>
 
-        {boss.note && <p className="mt-5 rounded-xl border border-[#c8dff2] bg-white/55 px-4 py-3 text-sm leading-relaxed text-[var(--ink-soft)]">托管备注：{boss.note}</p>}
+        {boss.note && <p className="mt-5 rounded-xl border border-[var(--line)] bg-[var(--surface-glass)] px-4 py-3 text-sm leading-relaxed text-[var(--ink-soft)]">托管备注：{boss.note}</p>}
       </section>
 
       {boss.issue.kind !== 'none' && (
-        <div className="rise-in flex items-start gap-3 rounded-2xl border border-[#ead39d] bg-[#fff8e8] px-5 py-4">
+        <div className="rise-in flex items-start gap-3 rounded-2xl border border-[var(--warning-border)] bg-[var(--warning-soft)] px-5 py-4">
           <AlertTriangle size={20} className="mt-0.5 shrink-0 text-[var(--warning)]" />
           <div>
-            <p className="font-bold text-[#845814]">当前托管遇到情况</p>
-            <p className="mt-1 text-sm text-[#8e713e]">{boss.issue.message || '托管小哥正在处理中，有进展会及时更新。'}</p>
+            <p className="font-bold text-[var(--warning-ink)]">当前托管遇到情况</p>
+            <p className="mt-1 text-sm text-[var(--warning-muted)]">{boss.issue.message || '托管小哥正在处理中，有进展会及时更新。'}</p>
           </div>
         </div>
       )}

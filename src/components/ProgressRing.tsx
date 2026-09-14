@@ -13,7 +13,7 @@ export default function ProgressRing({ percent, size = 120, stroke = 11, label }
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#dcecfb" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--track)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -34,10 +34,10 @@ export default function ProgressRing({ percent, size = 120, stroke = 11, label }
         </defs>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-2xl leading-none" style={{ color: '#1e8bf0' }}>
+        <span className="font-display text-2xl leading-none" style={{ color: 'var(--blue-text)' }}>
           {p}%
         </span>
-        {label && <span className="mt-1 text-[11px] font-semibold" style={{ color: '#6b86a1' }}>{label}</span>}
+        {label && <span className="mt-1 text-[11px] font-semibold" style={{ color: 'var(--ink-soft)' }}>{label}</span>}
       </div>
     </div>
   );

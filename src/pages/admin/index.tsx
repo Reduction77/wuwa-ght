@@ -53,7 +53,7 @@ export default function Admin({ onBack }: Props) {
   }, [serverMode, adminKey, setAdminKey, reload]);
 
   if (store.loading) {
-    return <div className="flex min-h-[70vh] items-center justify-center font-display text-lg" style={{ color: '#5b7a97' }}>正在读取数据…</div>;
+    return <div className="flex min-h-[70vh] items-center justify-center font-display text-lg" style={{ color: 'var(--ink-soft)' }}>正在读取数据…</div>;
   }
   if (!entered) {
     return <LoginGate onBack={onBack} onConnected={(c) => setGithub(c)} onKey={async (k) => {
@@ -70,8 +70,8 @@ export default function Admin({ onBack }: Props) {
             <ArrowLeft size={14} /> 首页
           </button>
           <div>
-            <h1 className="font-display text-xl" style={{ color: '#22405c' }}>托管登记后台</h1>
-            <p className="text-[11px] font-semibold" style={{ color: '#8aa2b8' }}>
+            <h1 className="font-display text-xl" style={{ color: 'var(--ink)' }}>托管登记后台</h1>
+            <p className="text-[11px] font-semibold" style={{ color: 'var(--muted-text)' }}>
               {serverMode
                 ? '服务器模式：数据直接保存在服务器上'
                 : github
@@ -115,18 +115,18 @@ export default function Admin({ onBack }: Props) {
           <button
             type="button"
             onClick={() => setShowNew(true)}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-3.5 text-sm font-bold transition-all duration-300 hover:border-[#45a9ff] hover:bg-[#f0f7ff]"
-            style={{ borderColor: '#b8d8f5', color: '#2a7fd4' }}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-4 py-3.5 text-sm font-bold transition-all duration-300 hover:border-[#45a9ff] hover:bg-[var(--surface-cyan)]"
+            style={{ borderColor: 'var(--line-strong)', color: 'var(--blue-text)' }}
           >
             <Plus size={16} /> 新增老板
           </button>
 
           <div className="paper-card space-y-2 px-3 py-3">
             <label className="relative block">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8aa2b8]" />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted-text)]" />
               <input className="input-soft !py-2 !pl-9 text-xs" placeholder="搜索称呼、账号、标签" value={query} onChange={(e) => setQuery(e.target.value)} />
             </label>
-            <button type="button" className="w-full text-center text-xs font-bold text-[#7e96ad]" onClick={() => { setShowArchived((value) => !value); setSelectedId(null); }}>
+            <button type="button" className="w-full text-center text-xs font-bold text-[var(--muted-text)]" onClick={() => { setShowArchived((value) => !value); setSelectedId(null); }}>
               {showArchived ? '← 返回当前老板' : `查看归档（${data.bosses.filter((boss) => boss.archived).length}）`}
             </button>
           </div>
@@ -145,19 +145,19 @@ export default function Admin({ onBack }: Props) {
                 className={`paper-card w-full cursor-pointer px-4 py-3.5 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg ${active ? 'ring-2 ring-[#45a9ff]' : ''}`}
               >
                 <div className="flex items-center gap-2">
-                  <p className="font-bold" style={{ color: '#22405c' }}>{b.name || '（未命名）'}</p>
-                  <span className="chip" style={{ background: '#e7f3ff', color: '#2a7fd4' }}>{TIER_LABEL[b.tier]}</span>
-                  {b.issue.kind !== 'none' && <span className="chip" style={{ background: '#fff1dc', color: '#b06f0e' }}>有异常</span>}
+                  <p className="font-bold" style={{ color: 'var(--ink)' }}>{b.name || '（未命名）'}</p>
+                  <span className="chip" style={{ background: 'var(--surface-cyan)', color: 'var(--blue-text)' }}>{TIER_LABEL[b.tier]}</span>
+                  {b.issue.kind !== 'none' && <span className="chip" style={{ background: 'var(--warning-soft)', color: 'var(--warning)' }}>有异常</span>}
                 </div>
-                <p className="mt-1 text-[11px]" style={{ color: '#8aa2b8' }}>
+                <p className="mt-1 text-[11px]" style={{ color: 'var(--muted-text)' }}>
                   {fmtCN(b.startDate)} 开始 · {b.cycleDays}天 · 第 {s.dayNow} 天
-                  {b.daily.includes(todayStr()) && <span style={{ color: '#1d9e74' }}> · 今日已清✓</span>}
-                  {left < 0 && <span className="font-bold" style={{ color: '#9f7aea' }}> · 已到期</span>}
+                  {b.daily.includes(todayStr()) && <span style={{ color: 'var(--success)' }}> · 今日已清✓</span>}
+                  {left < 0 && <span className="font-bold" style={{ color: 'var(--purple)' }}> · 已到期</span>}
                   {left >= 0 && left <= 5 && (
-                    <span className="font-bold" style={{ color: '#d18d1f' }}> · {left === 0 ? '今天到期' : `还剩${left}天`}</span>
+                    <span className="font-bold" style={{ color: 'var(--warning)' }}> · {left === 0 ? '今天到期' : `还剩${left}天`}</span>
                   )}
                 </p>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: '#e3effc' }}>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--track)' }}>
                   <div className="h-full rounded-full transition-all duration-700" style={{ width: `${s.overall}%`, background: 'linear-gradient(90deg,#45a9ff,#1e8bf0)' }} />
                 </div>
               </div>
@@ -170,9 +170,9 @@ export default function Admin({ onBack }: Props) {
           {selected ? (
             <div>
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="font-display text-lg" style={{ color: '#22405c' }}>
+                <h2 className="font-display text-lg" style={{ color: 'var(--ink)' }}>
                   正在登记：{selected.name || '（未命名）'}
-                  <span className="ml-2 align-middle text-xs font-sans" style={{ color: '#8aa2b8' }}>
+                  <span className="ml-2 align-middle text-xs font-sans" style={{ color: 'var(--muted-text)' }}>
                     <KeyRound size={11} className="mr-1 inline" />口令 {selected.passcode}
                   </span>
                 </h2>
@@ -184,7 +184,7 @@ export default function Admin({ onBack }: Props) {
                   }}>
                     {selected.archived ? <ArchiveRestore size={13} /> : <Archive size={13} />} {selected.archived ? '恢复' : '归档'}
                   </button>
-                  {selected.archived && <button type="button" className="btn-ghost !px-3.5 !py-1.5 text-xs !text-[#e05548]" onClick={() => {
+                  {selected.archived && <button type="button" className="btn-ghost !px-3.5 !py-1.5 text-xs !text-[var(--danger)]" onClick={() => {
                     if (confirm(`确定永久删除「${selected.name}」吗？请先确认已有备份，此操作保存后不可恢复。`)) {
                       store.removeBoss(selected.id);
                       setSelectedId(null);
@@ -196,8 +196,8 @@ export default function Admin({ onBack }: Props) {
             </div>
           ) : (
             <div className="paper-card flex h-64 flex-col items-center justify-center text-center">
-              <p className="font-display text-xl" style={{ color: '#22405c' }}>点左边一位老板开始登记</p>
-              <p className="mt-2 text-sm" style={{ color: '#8aa2b8' }}>{serverMode ? '登记后会自动保存，可在右侧查看同步状态' : '登记完成后，通过右侧面板保存并同步'}</p>
+              <p className="font-display text-xl" style={{ color: 'var(--ink)' }}>点左边一位老板开始登记</p>
+              <p className="mt-2 text-sm" style={{ color: 'var(--muted-text)' }}>{serverMode ? '登记后会自动保存，可在右侧查看同步状态' : '登记完成后，通过右侧面板保存并同步'}</p>
             </div>
           )}
         </main>
@@ -255,8 +255,8 @@ function TodayWorkbench({ onSelect }: { onSelect: (id: string) => void }) {
     <section className="paper-card mb-5 px-5 py-5">
       <div className="flex flex-wrap items-center gap-3">
         <div className="mr-auto">
-          <h2 className="font-display text-lg text-[#22405c]">今日工作台</h2>
-          <p className="mt-1 text-xs text-[#8aa2b8]">{fmtCN(today)} · 凌晨4点刷新 · 待完成 {pending.length}/{active.length} 位</p>
+          <h2 className="font-display text-lg text-[var(--ink)]">今日工作台</h2>
+          <p className="mt-1 text-xs text-[var(--muted-text)]">{fmtCN(today)} · 凌晨4点刷新 · 待完成 {pending.length}/{active.length} 位</p>
         </div>
         <button type="button" disabled={!batchable.length} className="btn-primary mobile-full !px-4 !py-2 text-xs sm:w-auto" onClick={completeAll}>无异常账号全部已清</button>
       </div>
@@ -269,18 +269,18 @@ function TodayWorkbench({ onSelect }: { onSelect: (id: string) => void }) {
             const weeklyDone = !!weekKey && boss.weekly.includes(weekKey);
             const eventDeadlines = [boss.bigEvent, ...boss.smallEvents].filter((event) => !event.done && event.deadline && event.deadline >= today && event.deadline <= addDays(today, 3));
             return (
-              <div key={boss.id} className={`grid grid-cols-1 items-center gap-2 rounded-xl border px-3 py-3 sm:grid-cols-[minmax(140px,1fr)_140px_140px_100px] sm:gap-3 sm:px-4 ${boss.issue.kind !== 'none' ? 'border-[#ffd9a0] bg-[#fffaf2]' : 'border-[var(--line)] bg-white'}`}>
+              <div key={boss.id} className={`grid grid-cols-1 items-center gap-2 rounded-xl border px-3 py-3 sm:grid-cols-[minmax(140px,1fr)_140px_140px_100px] sm:gap-3 sm:px-4 ${boss.issue.kind !== 'none' ? 'border-[var(--warning-border)] bg-[var(--warning-surface)]' : 'border-[var(--line)] bg-[var(--surface)]'}`}>
                 <button type="button" className="min-w-0 text-left" onClick={() => onSelect(boss.id)}>
-                  <p className="truncate text-sm font-bold text-[#22405c]">{boss.name}</p>
-                  <p className="truncate text-[11px] text-[#8aa2b8]">{boss.issue.kind !== 'none' ? `⚠ ${boss.issue.message || '存在异常'}` : eventDeadlines.length ? `⏰ ${eventDeadlines.length} 个活动即将截止` : boss.tags.join(' · ') || boss.account || TIER_LABEL[boss.tier]}</p>
+                  <p className="truncate text-sm font-bold text-[var(--ink)]">{boss.name}</p>
+                  <p className="truncate text-[11px] text-[var(--muted-text)]">{boss.issue.kind !== 'none' ? `⚠ ${boss.issue.message || '存在异常'}` : eventDeadlines.length ? `⏰ ${eventDeadlines.length} 个活动即将截止` : boss.tags.join(' · ') || boss.account || TIER_LABEL[boss.tier]}</p>
                 </button>
-                {boss.services.daily ? <button type="button" disabled={boss.issue.kind === 'paused'} onClick={() => toggleDaily(boss)} className="flex items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold" style={dailyDone ? { background: '#d6f4e7', color: '#1d9e74' } : { background: '#fdf3e3', color: '#d18d1f' }}>{dailyDone ? <CheckCircle2 size={15} /> : <Circle size={15} />}{dailyDone ? '今日已清' : boss.issue.kind === 'paused' ? '已暂停' : '待清体力'}</button> : <span className="text-center text-xs text-[#b0c2d3]">无日体</span>}
-                {boss.services.weekly ? <button type="button" disabled={boss.issue.kind === 'paused'} onClick={() => toggleWeekly(boss)} className="flex items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold" style={weeklyDone ? { background: '#e7f3ff', color: '#2a7fd4' } : { background: '#f5f8fb', color: '#7e96ad' }}>{weeklyDone ? <CheckCircle2 size={15} /> : <Circle size={15} />}{weeklyDone ? '本周已清' : boss.issue.kind === 'paused' ? '已暂停' : '本周待清'}</button> : <span className="text-center text-xs text-[#b0c2d3]">无周常</span>}
+                {boss.services.daily ? <button type="button" disabled={boss.issue.kind === 'paused'} onClick={() => toggleDaily(boss)} className="flex items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold" style={dailyDone ? { background: 'var(--success-soft)', color: 'var(--success)' } : { background: 'var(--warning-soft)', color: 'var(--warning)' }}>{dailyDone ? <CheckCircle2 size={15} /> : <Circle size={15} />}{dailyDone ? '今日已清' : boss.issue.kind === 'paused' ? '已暂停' : '待清体力'}</button> : <span className="text-center text-xs text-[var(--muted-text)]">无日体</span>}
+                {boss.services.weekly ? <button type="button" disabled={boss.issue.kind === 'paused'} onClick={() => toggleWeekly(boss)} className="flex items-center justify-center gap-1.5 rounded-full px-3 py-2 text-xs font-bold" style={weeklyDone ? { background: 'var(--surface-cyan)', color: 'var(--blue-text)' } : { background: 'var(--surface-soft)', color: 'var(--muted-text)' }}>{weeklyDone ? <CheckCircle2 size={15} /> : <Circle size={15} />}{weeklyDone ? '本周已清' : boss.issue.kind === 'paused' ? '已暂停' : '本周待清'}</button> : <span className="text-center text-xs text-[var(--muted-text)]">无周常</span>}
                 <button type="button" className="btn-ghost !px-3 !py-2 text-xs" onClick={() => onSelect(boss.id)}>查看详情</button>
               </div>
             );
           })}
-          {active.length === 0 && <p className="py-8 text-center text-sm text-[#9db4c9]">当前没有进行中的托管</p>}
+          {active.length === 0 && <p className="py-8 text-center text-sm text-[var(--muted-text)]">当前没有进行中的托管</p>}
         </div>
       </div>
     </section>
@@ -293,11 +293,11 @@ function AuditLog() {
   if (!entries.length) return null;
   return (
     <details className="paper-card mb-5 px-5 py-4">
-      <summary className="cursor-pointer text-sm font-bold text-[#5b7a97]">最近操作记录（{entries.length}）</summary>
+      <summary className="cursor-pointer text-sm font-bold text-[var(--ink-soft)]">最近操作记录（{entries.length}）</summary>
       <div className="mt-3 max-h-64 space-y-2 overflow-auto">
         {entries.map((entry) => {
           const boss = entry.bossId ? data.bosses.find((item) => item.id === entry.bossId) : null;
-          return <div key={entry.id} className="flex flex-wrap gap-x-3 text-xs text-[#7e96ad]"><span>{new Date(entry.at).toLocaleString('zh-CN')}</span><strong className="text-[#2b3f54]">{entry.action}</strong>{boss && <span>{boss.name}</span>}{entry.detail && <span>{entry.detail}</span>}</div>;
+          return <div key={entry.id} className="flex flex-wrap gap-x-3 text-xs text-[var(--muted-text)]"><span>{new Date(entry.at).toLocaleString('zh-CN')}</span><strong className="text-[var(--ink)]">{entry.action}</strong>{boss && <span>{boss.name}</span>}{entry.detail && <span>{entry.detail}</span>}</div>;
         })}
       </div>
     </details>
@@ -319,15 +319,15 @@ function RenewReminder({ onSelect }: { onSelect: (id: string) => void }) {
   return (
     <div
       className="paper-card rise-in mb-5 px-5 py-4"
-      style={{ border: '1.5px solid #ffd9a0', background: 'linear-gradient(135deg,#fffaf2,#fff1dc)' }}
+      style={{ border: '1.5px solid var(--warning-border)', background: 'linear-gradient(135deg,var(--warning-surface),var(--warning-soft))' }}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: '#ffe3b3', color: '#c07f16' }}>
+        <span className="flex h-8 w-8 items-center justify-center rounded-xl" style={{ background: 'var(--warning-badge)', color: 'var(--warning)' }}>
           <BellRing size={16} />
         </span>
-        <p className="font-display text-base" style={{ color: '#8a5a10' }}>续订提醒</p>
-        <span className="chip" style={{ background: '#ffe8c2', color: '#b06f0e' }}>{expiring.length} 位</span>
-        <p className="w-full text-[11px] font-semibold sm:w-auto sm:flex-1 sm:text-right" style={{ color: '#c09a5a' }}>
+        <p className="font-display text-base" style={{ color: 'var(--warning-ink)' }}>续订提醒</p>
+        <span className="chip" style={{ background: 'var(--warning-badge)', color: 'var(--warning)' }}>{expiring.length} 位</span>
+        <p className="w-full text-[11px] font-semibold sm:w-auto sm:flex-1 sm:text-right" style={{ color: 'var(--warning-muted)' }}>
           周期还剩 {REMIND_DAYS} 天以内（或已到期）的老板会出现在这里，记得提醒续费哦
         </p>
       </div>
@@ -337,16 +337,16 @@ function RenewReminder({ onSelect }: { onSelect: (id: string) => void }) {
           return (
             <div
               key={b.id}
-              className="flex items-center gap-2 rounded-full bg-white/85 px-4 py-2 text-xs font-bold shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
-              style={{ color: '#7a5a18', border: expired ? '1.5px solid #d6bcfa' : '1.5px solid #ffd9a0' }}
+              className="flex items-center gap-2 rounded-full bg-[var(--surface-glass)] px-4 py-2 text-xs font-bold shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+              style={{ color: 'var(--warning-ink)', border: expired ? '1.5px solid var(--purple-border)' : '1.5px solid var(--warning-border)' }}
             >
-              <button type="button" onClick={() => onSelect(b.id)} className="font-display text-sm" style={{ color: expired ? '#7c5cbf' : '#8a5a10' }}>{b.name}</button>
-              <span className="chip" style={{ background: '#e7f3ff', color: '#2a7fd4' }}>{TIER_LABEL[b.tier]}</span>
-              <span style={{ color: expired ? '#9f7aea' : '#d18d1f' }}>
+              <button type="button" onClick={() => onSelect(b.id)} className="font-display text-sm" style={{ color: expired ? 'var(--purple)' : 'var(--warning-ink)' }}>{b.name}</button>
+              <span className="chip" style={{ background: 'var(--surface-cyan)', color: 'var(--blue-text)' }}>{TIER_LABEL[b.tier]}</span>
+              <span style={{ color: expired ? 'var(--purple)' : 'var(--warning)' }}>
                 {expired ? `已到期 ${-left} 天` : left === 0 ? '今天到期！' : `还剩 ${left} 天`}
               </span>
-              <span style={{ color: '#b9a276' }}>{fmtCN(cycleEndDate(b))} 截止</span>
-              <button type="button" className="rounded-full bg-[#eef5fc] px-2 py-1 text-[11px] text-[#2a7fd4]" onClick={() => {
+              <span style={{ color: 'var(--warning-muted)' }}>{fmtCN(cycleEndDate(b))} 截止</span>
+              <button type="button" className="rounded-full bg-[var(--surface-cyan)] px-2 py-1 text-[11px] text-[var(--blue-text)]" onClick={() => {
                 const hour = Number(new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
                 const greeting = hour < 6 || hour >= 18 ? '晚上好' : hour < 11 ? '早上好' : hour < 14 ? '中午好' : '下午好';
                 const daysLeft = daysLeftInCycle(b);
@@ -355,7 +355,7 @@ function RenewReminder({ onSelect }: { onSelect: (id: string) => void }) {
                 const salutation = name.endsWith('老板') ? name : `${name}老板`;
                 void navigator.clipboard.writeText(`${salutation}${greeting}呀～您的鸣潮托管周期${when}！需要续期的话，跟我说一声就好哦～✨`);
               }}>复制提醒</button>
-              <select className="rounded-full border border-[#ead8b4] bg-white px-2 py-1 text-[11px]" value={b.renewalState} onChange={(e) => mutateBoss(b.id, (boss) => ({ ...boss, renewalState: e.target.value as Boss['renewalState'] }))}>
+              <select className="rounded-full border border-[var(--warning-border)] bg-[var(--surface)] px-2 py-1 text-[11px]" value={b.renewalState} onChange={(e) => mutateBoss(b.id, (boss) => ({ ...boss, renewalState: e.target.value as Boss['renewalState'] }))}>
                 <option value="none">未处理</option>
                 <option value="reminded">已提醒</option>
                 <option value="pending">待续费</option>
@@ -410,7 +410,7 @@ function CycleDaysField({ value, onChange }: { value: number; onChange: (days: n
             value={draft}
             onChange={(e) => commit(e.target.value)}
           />
-          <span className="text-xs font-bold" style={{ color: '#5b7a97' }}>天（1~365）</span>
+          <span className="text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>天（1~365）</span>
         </span>
       )}
     </div>
@@ -426,13 +426,13 @@ function AcceptingCard() {
     <div className="paper-card flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center">
       <span
         className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors duration-300"
-        style={acc.on ? { background: '#d9f3e6', color: '#1d9e74' } : { background: '#ffe8c2', color: '#b06f0e' }}
+        style={acc.on ? { background: 'var(--success-soft)', color: 'var(--success)' } : { background: 'var(--warning-badge)', color: 'var(--warning)' }}
       >
         {acc.on ? <BellRing size={18} /> : <PauseIcon />}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold" style={{ color: '#22405c' }}>接单状态</p>
-        <p className="mt-0.5 text-[11px]" style={{ color: '#8aa2b8' }}>
+        <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>接单状态</p>
+        <p className="mt-0.5 text-[11px]" style={{ color: 'var(--muted-text)' }}>
           首页顶部现在显示「{acc.text}」
         </p>
       </div>
@@ -440,7 +440,7 @@ function AcceptingCard() {
         type="button"
         onClick={() => setAccepting(!acc.on)}
         className="btn-ghost !px-4 !py-2 text-xs"
-        style={acc.on ? undefined : { background: '#d9f3e6', borderColor: '#b5e6cf', color: '#1d9e74' }}
+        style={acc.on ? undefined : { background: 'var(--success-soft)', borderColor: 'var(--success-border)', color: 'var(--success)' }}
       >
         {acc.on ? '暂停接单' : '恢复接单'}
       </button>
@@ -502,12 +502,12 @@ function VersionResetCard() {
 
   return (
     <div className="paper-card flex items-center gap-4 px-5 py-4">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: '#efe9fb', color: '#7c5cc9' }}>
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--purple-soft)', color: 'var(--purple)' }}>
         <RotateCcw size={18} />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-bold" style={{ color: '#22405c' }}>游戏版本更新</p>
-        <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: '#8aa2b8' }}>
+        <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>游戏版本更新</p>
+        <p className="mt-0.5 text-[11px] leading-relaxed" style={{ color: 'var(--muted-text)' }}>
           当前：{data.gameVersion?.name || '未设置'}；日期不固定，由你更新当天手动重置
         </p>
       </div>
@@ -575,13 +575,13 @@ function BackupCard() {
   };
 
   return (
-    <div className="paper-card flex items-center gap-4 px-5 py-4">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: '#e7f3ff', color: '#2a7fd4' }}>
+    <div className="paper-card flex flex-wrap items-center gap-4 px-5 py-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl" style={{ background: 'var(--surface-cyan)', color: 'var(--blue-text)' }}>
         <Download size={18} />
       </span>
-      <div className="flex-1">
-        <p className="text-sm font-bold" style={{ color: '#22405c' }}>数据备份 / 恢复</p>
-        <p className="mt-0.5 text-[11px]" style={{ color: '#8aa2b8' }}>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>数据备份 / 恢复</p>
+        <p className="mt-0.5 text-[11px]" style={{ color: 'var(--muted-text)' }}>
           {msg || (serverMode ? '把服务器上的数据存到本地，或从本地备份一键恢复' : github ? '把 GitHub 上的数据存到本地，或从本地备份一键恢复' : '本地模式下也可以先备份一份防丢')}
         </p>
       </div>
@@ -666,21 +666,21 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#22405c]/35 p-4 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[var(--overlay)] p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="paper-card view-swap w-full max-w-md px-6 py-6" onClick={(e) => e.stopPropagation()}>
-        <h4 className="font-display text-lg" style={{ color: '#22405c' }}>新增老板</h4>
-        <p className="mt-1 text-xs" style={{ color: '#8aa2b8' }}>填完这几项就能开始登记，其他细节之后随时改</p>
+        <h4 className="font-display text-lg" style={{ color: 'var(--ink)' }}>新增老板</h4>
+        <p className="mt-1 text-xs" style={{ color: 'var(--muted-text)' }}>填完这几项就能开始登记，其他细节之后随时改</p>
         <div className="mt-4 space-y-3">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>老板称呼 *</span>
+            <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>老板称呼 *</span>
             <input className="input-soft" placeholder="平时怎么称呼TA" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} autoFocus />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>账号（可打码，可空）</span>
+            <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>账号（可打码，可空）</span>
             <input className="input-soft" placeholder="留空会自动用手机号打码" value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>老板手机号 *（自动取后四位生成口令）</span>
+            <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>老板手机号 *（自动取后四位生成口令）</span>
             <input
               className="input-soft font-bold tracking-[0.15em]"
               placeholder="11 位手机号"
@@ -691,7 +691,7 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>
+            <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>
               登录口令 *（已按手机号后四位自动填好，可以直接改）
             </span>
             <input
@@ -705,22 +705,22 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
               }}
             />
             {autoDuplicated && (
-              <span className="mt-1.5 block text-xs font-semibold" style={{ color: '#d18d1f' }}>
+              <span className="mt-1.5 block text-xs font-semibold" style={{ color: 'var(--warning)' }}>
                 后四位和别的老板重复了，口令自动补位成「{autoCode}」——记得告诉这位老板
               </span>
             )}
             {manualDuplicated && (
-              <span className="mt-1.5 block text-xs font-semibold" style={{ color: '#d18d1f' }}>
+              <span className="mt-1.5 block text-xs font-semibold" style={{ color: 'var(--warning)' }}>
                 这个口令和现有老板重复了，建议换一个，不然两位老板会撞车
               </span>
             )}
-            <span className="mt-1.5 block text-[11px]" style={{ color: '#9db4c9' }}>
+            <span className="mt-1.5 block text-[11px]" style={{ color: 'var(--muted-text)' }}>
               老板自己也能在进度页改口令（服务器版会自动同步到你这边）
             </span>
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>托管套餐</span>
+              <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>托管套餐</span>
               <select className="input-soft" value={form.tier} onChange={(e) => {
                 const tier = Number(e.target.value) as Boss['tier'];
                 setForm({ ...form, tier, cycleDays: tier === 5 ? 30 : form.cycleDays });
@@ -733,12 +733,12 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
               </select>
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>托管周期</span>
+              <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>托管周期</span>
               <CycleDaysField value={form.cycleDays} onChange={(days) => setForm({ ...form, cycleDays: days })} />
             </label>
           </div>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>开始日期</span>
+            <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>开始日期</span>
             <input type="date" className="input-soft" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} />
           </label>
         </div>
@@ -776,10 +776,10 @@ function SaveBar() {
     <>
       <aside className="save-dock" aria-label="保存与同步">
         <div className="flex items-center gap-2 text-sm font-bold">
-          <span className={`h-2 w-2 shrink-0 rounded-full ${failed ? 'bg-[#e05548]' : !online || dirty ? 'bg-[#f2a93b]' : 'bg-[#2fbf8f]'}`} />
+          <span className={`h-2 w-2 shrink-0 rounded-full ${failed ? 'bg-[var(--danger)]' : !online || dirty ? 'bg-[#f2a93b]' : 'bg-[#2fbf8f]'}`} />
           {status}
         </div>
-        <p className={`save-dock-detail ${failed ? 'text-[#c64f46]' : 'text-[#6989a7]'}`}>{detail}</p>
+        <p className={`save-dock-detail ${failed ? 'text-[var(--danger)]' : 'text-[var(--ink-soft)]'}`}>{detail}</p>
         <div className="mt-3 flex flex-wrap gap-2">
           <button type="button" onClick={() => void save()} disabled={saving || !online} className="save-action flex-1">
             <CloudUpload size={15} /> {label}
@@ -855,13 +855,13 @@ function LoginGate({ onBack, onConnected, onKey }: { onBack: () => void; onConne
           <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: 'linear-gradient(135deg,#45a9ff,#1e8bf0)' }}>
             <KeyRound size={26} />
           </span>
-          <h2 className="font-display mt-4 text-center text-2xl" style={{ color: '#22405c' }}>托管小哥，输密码上岗</h2>
-          <p className="mt-2 text-center text-sm leading-relaxed" style={{ color: '#7e96ad' }}>
+          <h2 className="font-display mt-4 text-center text-2xl" style={{ color: 'var(--ink)' }}>托管小哥，输密码上岗</h2>
+          <p className="mt-2 text-center text-sm leading-relaxed" style={{ color: 'var(--muted-text)' }}>
             这是服务器版，数据都存在服务器上，不需要 GitHub。
             输入启动容器时设置的管理密码（ADMIN_PASSWORD）即可进入后台。
           </p>
           <label className="mt-6 block">
-            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>管理密码</span>
+            <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>管理密码</span>
             <input
               className="input-soft"
               type="password"
@@ -872,11 +872,11 @@ function LoginGate({ onBack, onConnected, onKey }: { onBack: () => void; onConne
               onKeyDown={(e) => e.key === 'Enter' && key.trim() && enterServer()}
             />
           </label>
-          {err && <p className="mt-3 text-sm font-semibold" style={{ color: '#e05548' }}>{err}</p>}
+          {err && <p className="mt-3 text-sm font-semibold" style={{ color: 'var(--danger)' }}>{err}</p>}
           <button type="button" disabled={busy || !key.trim()} onClick={enterServer} className="btn-primary mt-6 w-full">
             {busy ? '验证中…' : '进入后台'}
           </button>
-          <button type="button" onClick={onBack} className="mt-4 w-full text-center text-xs font-semibold" style={{ color: '#8aa2b8' }}>
+          <button type="button" onClick={onBack} className="mt-4 w-full text-center text-xs font-semibold" style={{ color: 'var(--muted-text)' }}>
             <ArrowLeft size={12} className="mr-1 inline" />返回首页
           </button>
         </div>
@@ -904,36 +904,36 @@ function LoginGate({ onBack, onConnected, onKey }: { onBack: () => void; onConne
         <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md" style={{ background: 'linear-gradient(135deg,#45a9ff,#1e8bf0)' }}>
           <Github size={26} />
         </span>
-        <h2 className="font-display mt-4 text-center text-2xl" style={{ color: '#22405c' }}>托管小哥，连接仓库</h2>
-        <p className="mt-2 text-center text-sm leading-relaxed" style={{ color: '#7e96ad' }}>
+        <h2 className="font-display mt-4 text-center text-2xl" style={{ color: 'var(--ink)' }}>托管小哥，连接仓库</h2>
+        <p className="mt-2 text-center text-sm leading-relaxed" style={{ color: 'var(--muted-text)' }}>
           填入 GitHub 令牌后，你登记的数据会写回仓库，老板刷新网页就能看到。
           只需配置一次，浏览器会记住。
         </p>
         <div className="mt-6 space-y-3">
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>GitHub 令牌（Token，需 Contents 读写权限）</span>
+            <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>GitHub 令牌（Token，需 Contents 读写权限）</span>
             <input className="input-soft" type="password" placeholder="ghp_… 或 github_pat_…" value={form.token} onChange={(e) => setForm({ ...form, token: e.target.value.trim() })} />
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="block">
-              <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>你的用户名</span>
+              <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>你的用户名</span>
               <input className="input-soft" placeholder="例如 zhubai" value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value.trim() })} />
             </label>
             <label className="block">
-              <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>仓库名</span>
+              <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>仓库名</span>
               <input className="input-soft" placeholder="例如 wuwa-ght" value={form.repo} onChange={(e) => setForm({ ...form, repo: e.target.value.trim() })} />
             </label>
           </div>
           <label className="block">
-            <span className="mb-1.5 block text-xs font-bold" style={{ color: '#5b7a97' }}>分支</span>
+            <span className="mb-1.5 block text-xs font-bold" style={{ color: 'var(--ink-soft)' }}>分支</span>
             <input className="input-soft" value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value.trim() || 'main' })} />
           </label>
         </div>
-        {err && <p className="mt-3 text-sm font-semibold" style={{ color: '#e05548' }}>{err}</p>}
+        {err && <p className="mt-3 text-sm font-semibold" style={{ color: 'var(--danger)' }}>{err}</p>}
         <button type="button" disabled={busy || !form.token || !form.owner || !form.repo} onClick={connect} className="btn-primary mt-6 w-full">
           {busy ? '连接中…' : '连接并进入后台'}
         </button>
-        <button type="button" onClick={onBack} className="mt-4 w-full text-center text-xs font-semibold" style={{ color: '#8aa2b8' }}>
+        <button type="button" onClick={onBack} className="mt-4 w-full text-center text-xs font-semibold" style={{ color: 'var(--muted-text)' }}>
           <ArrowLeft size={12} className="mr-1 inline" />返回首页
         </button>
       </div>

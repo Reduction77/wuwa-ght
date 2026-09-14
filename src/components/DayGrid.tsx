@@ -32,20 +32,20 @@ export default function DayGrid({ boss, editable, onToggleDay }: Props) {
               done
                 ? 'border border-[#45a9ff] bg-[#45a9ff] text-white shadow-sm'
                 : future
-                  ? 'border border-dashed border-[#b8d8f5] bg-white text-[#2a7fd4]'
-                  : 'border border-[#b8d8f5] bg-white text-[#2a7fd4]',
+                  ? 'border border-dashed border-[var(--line-strong)] bg-[var(--surface)] text-[var(--blue-text)]'
+                  : 'border border-[var(--line-strong)] bg-[var(--surface)] text-[var(--blue-text)]',
               isToday ? 'today-breathe ring-2 ring-[var(--signal)]' : '',
               editable ? 'cursor-pointer hover:-translate-y-0.5' : 'cursor-default',
             ].join(' ')}
           >
             {done && (
-              <span className="check-pop absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--success)] text-white shadow">
+              <span className="check-pop absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--success-fill)] text-white shadow">
                 <Check size={10} strokeWidth={4} />
               </span>
             )}
             <span className="flex h-[80%] w-[80%] flex-col items-center justify-center">
               <span className="day-cell-number">{i + 1}</span>
-              <span className={`day-cell-date ${done ? 'text-white/95' : 'text-[#2a7fd4]'}`}>
+              <span className={`day-cell-date ${done ? 'text-white/95' : 'text-[var(--blue-text)]'}`}>
                 {date.slice(5).replace('-', '/')}
               </span>
             </span>

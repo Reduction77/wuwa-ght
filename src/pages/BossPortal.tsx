@@ -208,24 +208,24 @@ function ChangePasscodeCard({ onChanged }: { onChanged: () => void }) {
           type="button"
           onClick={() => setOpen(true)}
           className="flex w-full items-center justify-center gap-2 text-xs font-bold"
-          style={{ color: '#2a7fd4' }}
+          style={{ color: 'var(--blue-text)' }}
         >
           <KeyRound size={14} /> 想换个好记的口令？点这里修改
         </button>
       ) : !serverMode ? (
         <div className="text-center">
-          <p className="text-sm font-bold" style={{ color: '#22405c' }}>修改口令</p>
-          <p className="mt-2 text-xs leading-relaxed" style={{ color: '#7e96ad' }}>
+          <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>修改口令</p>
+          <p className="mt-2 text-xs leading-relaxed" style={{ color: 'var(--muted-text)' }}>
             这个版本改不了口令哦——想换口令的话<WeChatTip />跟我说一声，我帮你改好。
           </p>
-          <button type="button" onClick={() => setOpen(false)} className="mt-3 text-xs font-semibold" style={{ color: '#8aa2b8' }}>
+          <button type="button" onClick={() => setOpen(false)} className="mt-3 text-xs font-semibold" style={{ color: 'var(--muted-text)' }}>
             收起
           </button>
         </div>
       ) : (
         <div>
-          <p className="text-sm font-bold" style={{ color: '#22405c' }}>修改口令</p>
-          <p className="mt-1 text-[11px]" style={{ color: '#9db4c9' }}>
+          <p className="text-sm font-bold" style={{ color: 'var(--ink)' }}>修改口令</p>
+          <p className="mt-1 text-[11px]" style={{ color: 'var(--muted-text)' }}>
             改好后这边和托管小哥的后台会同步生效，下次登录用新口令
           </p>
           <div className="mt-3 space-y-2.5">
@@ -246,7 +246,7 @@ function ChangePasscodeCard({ onChanged }: { onChanged: () => void }) {
             />
           </div>
           {msg && (
-            <p className="mt-2.5 text-center text-xs font-semibold" style={{ color: msg.ok ? '#1d9e74' : '#e05548' }}>
+            <p className="mt-2.5 text-center text-xs font-semibold" style={{ color: msg.ok ? 'var(--success)' : 'var(--danger)' }}>
               {msg.text}
             </p>
           )}
@@ -275,7 +275,7 @@ function WeChatTip() {
   return (
     <span
       className="group relative mx-0.5 inline-block cursor-pointer font-bold underline decoration-dotted underline-offset-4"
-      style={{ color: '#2a7fd4' }}
+      style={{ color: 'var(--blue-text)' }}
       onClick={(e) => {
         e.stopPropagation();
         setShow((v) => !v);

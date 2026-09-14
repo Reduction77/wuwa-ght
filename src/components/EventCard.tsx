@@ -22,7 +22,7 @@ export default function EventCard({ event, badge, editable, onToggle, onEdit }: 
       {event.image && (
         <div className="relative h-36 w-full overflow-hidden">
           <img src={event.image} alt={event.name} className="h-full w-full object-cover" loading="lazy" />
-          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 55%, rgba(255,255,255,0.9))' }} />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 55%, var(--surface))' }} />
         </div>
       )}
       <div className="flex flex-wrap items-center gap-3 px-4 py-3.5">
@@ -36,26 +36,26 @@ export default function EventCard({ event, badge, editable, onToggle, onEdit }: 
           {event.done ? (
             <CheckCircle2 className="check-pop text-[#2fbf8f]" size={26} />
           ) : (
-            <Circle className="text-[#b9d2e8]" size={26} />
+            <Circle className="text-[var(--line-strong)]" size={26} />
           )}
         </button>
         <div className="min-w-32 flex-1">
           {badge && (
-            <span className="chip mb-1" style={{ background: '#e7f3ff', color: '#2a7fd4' }}>
+            <span className="chip mb-1" style={{ background: 'var(--surface-cyan)', color: 'var(--blue-text)' }}>
               {badge}
             </span>
           )}
           <p
-            className={`break-words font-bold leading-snug transition-colors duration-300 ${event.done ? 'text-[#7e96ad] line-through' : 'text-[#2b3f54]'}`}
+            className={`break-words font-bold leading-snug transition-colors duration-300 ${event.done ? 'text-[var(--muted-text)] line-through' : 'text-[var(--ink)]'}`}
           >
             {event.name || '未命名活动'}
           </p>
-          {(event.openDate || event.deadline) && <p className="mt-1 break-words text-[10px] font-semibold leading-4 text-[#8aa2b8]">{event.openDate ? `${event.openDate} 开放` : ''}{event.openDate && event.deadline ? ' · ' : ''}{event.deadline ? `${event.deadline} 截止` : ''}</p>}
+          {(event.openDate || event.deadline) && <p className="mt-1 break-words text-[10px] font-semibold leading-4 text-[var(--muted-text)]">{event.openDate ? `${event.openDate} 开放` : ''}{event.openDate && event.deadline ? ' · ' : ''}{event.deadline ? `${event.deadline} 截止` : ''}</p>}
         </div>
         <div className="ml-auto flex shrink-0 items-center gap-2">
           <span
             className="chip shrink-0"
-            style={event.done ? { background: '#e2f7ef', color: '#1d9e74' } : { background: '#fdf3e3', color: '#d18d1f' }}
+            style={event.done ? { background: 'var(--success-soft)', color: 'var(--success)' } : { background: 'var(--warning-soft)', color: 'var(--warning)' }}
           >
             {event.done ? '已完成' : '未完成'}
           </span>

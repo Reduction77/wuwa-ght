@@ -47,29 +47,29 @@ export default function Landing({ onGoBoss, onGoAdmin }: Props) {
 
       <section className="resonance-panel rise-in rise-in-1 mt-4 grid gap-8 px-6 py-8 sm:px-9 sm:py-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center lg:px-12 lg:py-12">
         <div>
-          <span className={`chip ${accepting.on ? 'bg-[#d9edff] text-[#2a7fc0]' : 'bg-[#fff1dc] text-[#b7791f]'}`}>
+          <span className={`chip ${accepting.on ? 'bg-[var(--surface-cyan)] text-[var(--blue-text)]' : 'bg-[var(--warning-soft)] text-[var(--warning)]'}`}>
             {accepting.on ? <Sparkles size={13} /> : <PauseCircle size={13} />} {accepting.text}
           </span>
-          <p className="eyebrow mt-6 text-[#4f8fbe]">WUTHERING WAVES ACCOUNT CARE</p>
+          <p className="eyebrow mt-6 text-[var(--blue-text)]">WUTHERING WAVES ACCOUNT CARE</p>
           <h1 className="font-display mt-3 max-w-2xl text-4xl leading-[1.16] text-[var(--ink)] sm:text-5xl lg:text-[3.4rem]">{siteConfig.heroTitle}</h1>
           <p className="mt-4 max-w-xl text-sm leading-7 text-[var(--ink-soft)] sm:text-base">{siteConfig.heroSubtitle}</p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
             <button type="button" onClick={onGoBoss} className="btn-primary mobile-full text-base">
               <KeyRound size={18} /> 查看我的托管进度 <ArrowRight size={16} />
             </button>
-            <a href="#pricing" className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#bedaf0] bg-white/65 px-6 text-sm font-bold text-[#367caf] transition-colors hover:bg-white">了解套餐</a>
+            <a href="#pricing" className="inline-flex min-h-11 items-center justify-center rounded-full border border-[var(--line-strong)] bg-[var(--surface-glass)] px-6 text-sm font-bold text-[var(--blue-text)] transition-colors hover:bg-[var(--surface)]">了解套餐</a>
           </div>
         </div>
 
-        <div className="rounded-2xl border border-[#c8dff2] bg-white/45 p-4 sm:p-5">
-          <div className="flex items-center justify-between border-b border-[#c8dff2] pb-3">
+        <div className="rounded-2xl border border-[var(--line)] bg-[var(--surface-glass)] p-4 sm:p-5">
+          <div className="flex items-center justify-between border-b border-[var(--line)] pb-3">
             <div>
               <p className="text-xs font-bold text-[var(--muted-text)]">老板端一眼看懂</p>
               <p className="mt-1 font-display text-xl text-[var(--ink)]">今日托管概览</p>
             </div>
             <span className="font-display text-3xl text-[var(--signal-strong)]">86%</span>
           </div>
-          <div className="mt-2 divide-y divide-[#c8dff2]">
+          <div className="mt-2 divide-y divide-[var(--line)]">
             <HeroStatus label="今天" value="已完成" done />
             <HeroStatus label="本周" value="进行中" />
             <HeroStatus label="本版本" value="6 / 8 项" />
@@ -112,19 +112,19 @@ export default function Landing({ onGoBoss, onGoAdmin }: Props) {
 
         <div className="mt-7 grid gap-4 lg:grid-cols-[1.05fr_1.95fr]">
           <div className="resonance-panel px-6 py-6 sm:px-7 sm:py-7">
-            <span className="chip bg-[#d9edff] text-[#2a7fc0]">推荐 · 最省心</span>
+            <span className="chip bg-[var(--surface-cyan)] text-[var(--blue-text)]">推荐 · 最省心</span>
             <p className="font-display mt-5 text-2xl text-[var(--ink)]">{featuredPlan.name}</p>
             <p className="mt-2 text-sm leading-6 text-[var(--ink-soft)]">{featuredPlan.content}</p>
             <p className="font-display mt-6 text-4xl text-[var(--signal-strong)]">{featuredPlan.price}</p>
             {featuredPlan.note && <p className="mt-2 text-xs leading-5 text-[var(--muted-text)]">{featuredPlan.note}</p>}
-            <div className="mt-6 space-y-2 border-t border-[#c8dff2] pt-5 text-sm text-[var(--ink-soft)]">
+            <div className="mt-6 space-y-2 border-t border-[var(--line)] pt-5 text-sm text-[var(--ink-soft)]">
               <p className="flex items-center gap-2"><Check size={15} className="text-[var(--signal-strong)]" />每日、每周及版本活动</p>
               <p className="flex items-center gap-2"><Check size={15} className="text-[var(--signal-strong)]" />高难任务集中处理</p>
               <p className="flex items-center gap-2"><Check size={15} className="text-[var(--signal-strong)]" />老板端随时查询进度</p>
             </div>
           </div>
 
-          <div className="task-list bg-white">
+          <div className="task-list bg-[var(--surface)]">
             {otherPlans.map((plan) => (
               <div key={plan.name} className="grid gap-2 border-b border-[var(--line)] px-5 py-4 last:border-b-0 sm:grid-cols-[1fr_1.6fr_auto] sm:items-center sm:gap-5">
                 <p className="font-bold text-[var(--ink)]">{plan.name}</p>
