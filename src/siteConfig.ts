@@ -18,7 +18,7 @@ export const siteConfig = {
     { name: '日体', content: '每天清一次体力', price: '3r / 天', note: '' },
     { name: '日体 + 周常', content: '每日体力 + 每周周常', price: '90r / 月', note: '' },
     { name: '日体 + 周常 + 大活动', content: '日常 + 周常 + 深塔/海墟/矩阵 或 版本大活动', price: '145r / 月', note: '高难三选 或 大活动，可在后台灵活配置' },
-    { name: '全托', content: '日体 + 全活动 + 深塔海墟矩阵全息', price: '235r / 月', note: '帮打全息，帮养2个角色小毕业' },
+    { name: '全托', content: '日体 + 全活动 + 深塔海墟矩阵全息', price: '245r / 月', note: '帮打全息，帮养2个角色小毕业' },
     { name: '舰长', content: '日体 + 周常 + 高难（深塔/海墟/矩阵/全息）', price: '舰长专属', note: '30天，日常/周常/大活动可按需开启' },
   ],
   planExtra: '非全托套餐 + 深塔 + 海墟 + 矩阵 = 非全托套餐 + 55r / 月',
