@@ -771,7 +771,7 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
                 <option value={1}>日体（3r/天）</option>
                 <option value={2}>日体 + 周常（90r/月）</option>
                 <option value={3}>日体 + 周常 + 大活动（145r/月）</option>
-                <option value={4}>全托（235r/月）</option>
+                <option value={4}>全托（245r/月）</option>
                 <option value={5}>舰长（日体 + 周常 + 高难 · 30天）</option>
               </select>
             </label>

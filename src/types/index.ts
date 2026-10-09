@@ -122,7 +122,7 @@ export const TIER_PRICE: Record<PackageTier, string> = {
   1: '3r / 天',
   2: '90r / 月',
   3: '145r / 月',
-  4: '235r / 月',
+  4: '245r / 月',
   5: '舰长专属',
 };
 
