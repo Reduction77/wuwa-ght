@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { resetBossChallengeProgress, upcomingServiceEvents, type ResettableChallenge } from '@/lib/boss-rules';
+import { applyBossRenewalState, resetBossChallengeProgress, upcomingServiceEvents, type ResettableChallenge } from '@/lib/boss-rules';
 import { addDays, bossStats, currentWeekIndex, cycleEndDate, daysLeftInCycle, fmtCN, todayStr, weekRange } from '@/lib/dates';
 import { emptyBoss, makePasscode, normalizeSiteData, useStore } from '@/lib/store';
 import { testConnection, type GithubConfig } from '@/lib/github';
@@ -311,6 +311,9 @@ function AuditLog() {
 
 /* ---------- 续订提醒：还剩 5 天以内（含已到期）的老板 ---------- */
 const REMIND_DAYS = 5;
+const RENEWAL_OPTIONS = [
+  ['none', '未处理'], ['reminded', '已提醒'], ['pending', '待续费'], ['renewed', '已续费'], ['ending', '不续订'],
+] as const;
 
 function RenewReminder({ onSelect }: { onSelect: (id: string) => void }) {
   const { data, mutateBoss } = useStore();
@@ -360,12 +363,16 @@ function RenewReminder({ onSelect }: { onSelect: (id: string) => void }) {
                 const salutation = name.endsWith('老板') ? name : `${name}老板`;
                 void navigator.clipboard.writeText(`${salutation}${greeting}呀～您的鸣潮托管周期${when}！需要续期的话，跟我说一声就好哦～✨`);
               }}>复制提醒</button>
-              <select className="rounded-full border border-[var(--warning-border)] bg-[var(--surface)] px-2 py-1 text-[11px]" value={b.renewalState} onChange={(e) => mutateBoss(b.id, (boss) => ({ ...boss, renewalState: e.target.value as Boss['renewalState'] }))}>
-                <option value="none">未处理</option>
-                <option value="reminded">已提醒</option>
-                <option value="pending">待续费</option>
-                <option value="renewed">已续费</option>
-                <option value="ending">不续订</option>
+              <select className="rounded-full border border-[var(--warning-border)] bg-[var(--surface)] px-2 py-1 text-[11px]" aria-label={`${b.name}的续订状态`} value="" onChange={(e) => {
+                const state = e.target.value as Boss['renewalState'];
+                const today = todayStr();
+                mutateBoss(b.id, boss => applyBossRenewalState(boss, state, today), state === 'renewed'
+                  ? { action: '同版本续期', detail: `临期提醒选择已续费 · ${today} 起` }
+                  : state === 'ending' ? { action: '归档老板', detail: '临期提醒选择不续订，自动归档' } : undefined);
+              }}>
+                {/* 保留当前状态的显示，同时允许下一周期再次选择“已续费”。 */}
+                <option value="" disabled hidden>{RENEWAL_OPTIONS.find(([state]) => state === b.renewalState)?.[1] ?? '未处理'}</option>
+                {RENEWAL_OPTIONS.map(([state, label]) => <option key={state} value={state}>{label}</option>)}
               </select>
             </div>
           );

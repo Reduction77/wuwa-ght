@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { renewBossForDate, resetBossVersionProgress, resetBossChallengeProgress, upcomingServiceEvents } from '../src/lib/boss-rules.ts';
+import { applyBossRenewalState, renewBossForDate, resetBossVersionProgress, resetBossChallengeProgress, upcomingServiceEvents } from '../src/lib/boss-rules.ts';
 
 function boss() {
   return {
@@ -58,6 +58,38 @@ test('同版本续期只清日常并归档旧周期', () => {
   assert.equal(after.bigEvent.done, true);
   assert.equal(after.challenges.matrix.done, true);
   assert.equal(after.cycleHistory[0].daily.length, 1);
+});
+
+test('临期选择已续费按原周期天数续期，只清日常并保留原记录', () => {
+  const before = { ...boss(), archived: false, cycleDays: 42, renewalState: 'pending' };
+  const snapshot = structuredClone(before);
+  const after = applyBossRenewalState(before, 'renewed', '2026-10-22');
+  assert.equal(after.startDate, '2026-10-22');
+  assert.equal(after.cycleDays, 42);
+  assert.equal(after.renewalState, 'renewed');
+  assert.equal(after.archived, false);
+  assert.deepEqual(after.daily, []);
+  assert.equal(after.cycleHistory.length, 1);
+  assert.deepEqual(after.cycleHistory[0].daily, before.daily);
+  assert.equal(after.cycleHistory[0].startDate, before.startDate);
+  for (const key of ['weekly', 'bigEvent', 'smallEvents', 'challenges', 'optionals', 'extraTasks', 'excludedDays']) {
+    assert.deepEqual(after[key], before[key]);
+  }
+  assert.deepEqual(before, snapshot);
+});
+
+test('选择不续订同时标记并归档，托管资料完整保留', () => {
+  const before = { ...boss(), archived: false };
+  const snapshot = structuredClone(before);
+  assert.deepEqual(applyBossRenewalState(before, 'ending', '2026-10-22'), { ...before, archived: true, renewalState: 'ending' });
+  assert.deepEqual(before, snapshot);
+});
+
+test('未处理、已提醒和待续费仍然只更新状态', () => {
+  const before = { ...boss(), archived: false };
+  for (const state of ['none', 'reminded', 'pending']) {
+    assert.deepEqual(applyBossRenewalState(before, state, '2026-10-22'), { ...before, renewalState: state });
+  }
 });
 
 for (const [kind, label] of [['tower', '深塔'], ['sea', '海墟']]) {

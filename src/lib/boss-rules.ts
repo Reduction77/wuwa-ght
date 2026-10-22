@@ -1,4 +1,4 @@
-import type { Boss, CycleSnapshot } from '@/types';
+import type { Boss, CycleSnapshot, RenewalState } from '@/types';
 
 /** 后台截止提醒只统计实际承接的活动，不受老板端可见开关影响。 */
 export function upcomingServiceEvents(boss: Boss, today: string, through: string) {
@@ -43,6 +43,13 @@ export function renewBossForDate(boss: Boss, today: string, id = `cycle-${Date.n
     renewalState: 'renewed',
     cycleHistory: [...boss.cycleHistory, snapshot],
   };
+}
+
+/** 临期下拉中的已续费执行同版本续期，不续订则保留记录并归档。 */
+export function applyBossRenewalState(boss: Boss, state: RenewalState, today: string): Boss {
+  if (state === 'renewed') return renewBossForDate(boss, today);
+  if (state === 'ending') return { ...boss, renewalState: state, archived: true };
+  return { ...boss, renewalState: state };
 }
 
 /** 游戏版本更新：清空旧活动资料，保留日常/周常/海墟/深塔并重置其余版本任务。 */
