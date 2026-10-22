@@ -10,7 +10,7 @@ interface Props {
 
 /** 托管周期打卡格：每日体力 */
 export default function DayGrid({ boss, editable, onToggleDay }: Props) {
-  const today = todayStr();
+  const today = boss.archivedDay ?? todayStr();
   const cells = cycleDates(boss);
 
   return (
@@ -23,7 +23,7 @@ export default function DayGrid({ boss, editable, onToggleDay }: Props) {
           <button
             key={date}
             type="button"
-            disabled={!editable}
+            disabled={!editable || boss.archived}
             onClick={() => onToggleDay?.(date)}
             title={`第 ${i + 1} 天 · ${fmtCN(date)}${done ? ' · 已清体力' : ''}`}
             aria-label={`第 ${i + 1} 天，${fmtCN(date)}，${done ? '已完成' : future ? '尚未到达' : '未完成'}`}

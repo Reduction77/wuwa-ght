@@ -16,6 +16,12 @@ export function todayStr(now = new Date()): string {
   return `${value('year')}-${value('month')}-${value('day')}`;
 }
 
+/** 下一次北京时间 04:00 的精确等待时间，无需轮询。 */
+export function nextGameDayDelay(now = new Date()): number {
+  const next = new Date(`${todayStr(now)}T04:00:00+08:00`).getTime() + 86400000;
+  return Math.max(1, next - now.getTime() + 50);
+}
+
 export function toDateStr(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -40,7 +46,7 @@ export function fmtCN(dateStr: string): string {
 }
 
 /** 周期第几天（1 起）；未到开始日返回 0，超过周期返回 cycleDays */
-export function cycleDayIndex(boss: Boss, date = todayStr()): number {
+export function cycleDayIndex(boss: Boss, date = boss.archivedDay ?? todayStr()): number {
   if (date < boss.startDate) return 0;
   return Math.min(cycleDates(boss).filter((item) => item <= date).length, boss.cycleDays);
 }
@@ -91,7 +97,7 @@ export function weekRange(boss: Boss, weekIdx: number): { from: string; to: stri
 }
 
 export function currentWeekIndex(boss: Boss): number {
-  const today = todayStr();
+  const today = boss.archivedDay ?? todayStr();
   if (today < boss.startDate || today > cycleEndDate(boss)) return -1;
   const monday = new Date(weekMonday(boss) + 'T00:00:00').getTime();
   const current = new Date(today + 'T00:00:00').getTime();
@@ -113,7 +119,7 @@ export function bossStats(b: Boss): BossStats {
   const dayNow = cycleDayIndex(b);
   const eligibleDates = cycleDates(b);
   const eligibleSet = new Set(eligibleDates);
-  const dailyElapsed = eligibleDates.filter((date) => date <= todayStr()).length;
+  const dailyElapsed = eligibleDates.filter((date) => date <= (b.archivedDay ?? todayStr())).length;
   const dailyDone = b.daily.filter((date) => eligibleSet.has(date)).length;
   const weeksTotal = cycleWeeks(b);
   const visibleWeekKeys = new Set(Array.from({ length: weeksTotal }, (_, i) => weekRange(b, i).from));
@@ -126,7 +132,7 @@ export function bossStats(b: Boss): BossStats {
     if (b.bigEvent.done) tasksDone += 1;
   }
   if (b.services.smallEvents && b.show.bigEvent) {
-    tasksTotal += 3; // 小活动
+    tasksTotal += b.smallEvents.length;
     b.smallEvents.forEach((e) => e.done && tasksDone++);
   }
   // 高难挑战按开启的单项计入

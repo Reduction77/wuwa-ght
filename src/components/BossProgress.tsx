@@ -33,7 +33,7 @@ interface DisplayTask {
 /** 老板视角：先回答今天、本周、本版本，再按需展开详细记录。 */
 export default function BossProgress({ boss }: Props) {
   const stats = bossStats(boss);
-  const today = todayStr();
+  const today = boss.archivedDay ?? todayStr();
   const dayNow = cycleDayIndex(boss);
   const weeks = cycleWeeks(boss);
   const curWeek = currentWeekIndex(boss);
@@ -68,6 +68,7 @@ export default function BossProgress({ boss }: Props) {
   return (
     <div className="space-y-4">
       <section className="resonance-panel rise-in px-5 py-5 sm:px-7 sm:py-7">
+        {boss.archived && <p className="mb-3 text-sm font-bold text-[var(--muted-text)]">托管已归档{boss.archivedDay ? ` · 留存于 ${boss.archivedDay}` : ''}，以下为留存进度</p>}
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
             <p className="eyebrow text-[var(--blue-text)]">WUTHERING WAVES · 托管进度</p>

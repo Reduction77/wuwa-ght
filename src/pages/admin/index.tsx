@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { applyBossRenewalState, resetBossChallengeProgress, upcomingServiceEvents, type ResettableChallenge } from '@/lib/boss-rules';
+import { resetBossChallengeProgress, upcomingServiceEvents, type ResettableChallenge } from '@/lib/boss-rules';
 import { addDays, bossStats, currentWeekIndex, cycleEndDate, daysLeftInCycle, fmtCN, todayStr, weekRange } from '@/lib/dates';
 import { emptyBoss, makePasscode, normalizeSiteData, useStore } from '@/lib/store';
 import { testConnection, type GithubConfig } from '@/lib/github';
@@ -316,7 +316,29 @@ const RENEWAL_OPTIONS = [
 ] as const;
 
 function RenewReminder({ onSelect }: { onSelect: (id: string) => void }) {
-  const { data, mutateBoss } = useStore();
+  const { data, setRenewalState, recordReminderCopied, showNotice } = useStore();
+  const [copying, setCopying] = useState<string | null>(null);
+  const copyReminder = async (boss: Boss) => {
+    setCopying(boss.id);
+    const hour = Number(new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+    const greeting = hour < 6 || hour >= 18 ? '晚上好' : hour < 11 ? '早上好' : hour < 14 ? '中午好' : '下午好';
+    const left = daysLeftInCycle(boss);
+    const when = left < 0 ? `已经到期${-left}天啦` : left === 0 ? '今天到期啦' : `还有${left}天到期啦`;
+    const name = boss.name.trim();
+    const salutation = name.endsWith('老板') ? name : `${name}老板`;
+    const message = `${salutation}${greeting}呀～您的鸣潮托管周期${when}！需要续期的话，跟我说一声就好哦～✨`;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('clipboard-unavailable');
+      await navigator.clipboard.writeText(message);
+      recordReminderCopied(boss.id);
+      showNotice('提醒已复制', '发送给老板后，点击“已发出”或选择“已提醒”，再记录实际发出时间。');
+    } catch {
+      showNotice('复制失败', `浏览器未允许复制，本次未记录为已复制或已发出。检查剪贴板权限后重试，或手动复制：${message}`, 'error');
+    } finally {
+      setCopying(null);
+    }
+  };
+  const reminderTime = (at: string) => new Date(at).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
   const expiring = data.bosses
     .map((b) => ({ b, left: daysLeftInCycle(b) }))
     .filter((x) => !x.b.archived && x.left <= REMIND_DAYS)
@@ -345,7 +367,7 @@ function RenewReminder({ onSelect }: { onSelect: (id: string) => void }) {
           return (
             <div
               key={b.id}
-              className="flex items-center gap-2 rounded-full bg-[var(--surface-glass)] px-4 py-2 text-xs font-bold shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
+              className="flex max-w-full flex-wrap items-center gap-2 rounded-2xl bg-[var(--surface-glass)] px-4 py-2 text-xs font-bold shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
               style={{ color: 'var(--warning-ink)', border: expired ? '1.5px solid var(--purple-border)' : '1.5px solid var(--warning-border)' }}
             >
               <button type="button" onClick={() => onSelect(b.id)} className="font-display text-sm" style={{ color: expired ? 'var(--purple)' : 'var(--warning-ink)' }}>{b.name}</button>
@@ -354,26 +376,21 @@ function RenewReminder({ onSelect }: { onSelect: (id: string) => void }) {
                 {expired ? `已到期 ${-left} 天` : left === 0 ? '今天到期！' : `还剩 ${left} 天`}
               </span>
               <span style={{ color: 'var(--warning-muted)' }}>{fmtCN(cycleEndDate(b))} 截止</span>
-              <button type="button" className="rounded-full bg-[var(--surface-cyan)] px-2 py-1 text-[11px] text-[var(--blue-text)]" onClick={() => {
-                const hour = Number(new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
-                const greeting = hour < 6 || hour >= 18 ? '晚上好' : hour < 11 ? '早上好' : hour < 14 ? '中午好' : '下午好';
-                const daysLeft = daysLeftInCycle(b);
-                const when = daysLeft < 0 ? `已经到期${-daysLeft}天啦` : daysLeft === 0 ? '今天到期啦' : `还有${daysLeft}天到期啦`;
-                const name = b.name.trim();
-                const salutation = name.endsWith('老板') ? name : `${name}老板`;
-                void navigator.clipboard.writeText(`${salutation}${greeting}呀～您的鸣潮托管周期${when}！需要续期的话，跟我说一声就好哦～✨`);
-              }}>复制提醒</button>
+              <button type="button" disabled={copying !== null} className="rounded-full bg-[var(--surface-cyan)] px-2 py-1 text-[11px] text-[var(--blue-text)]" onClick={() => void copyReminder(b)}>{copying === b.id ? '复制中…' : '复制提醒'}</button>
               <select className="rounded-full border border-[var(--warning-border)] bg-[var(--surface)] px-2 py-1 text-[11px]" aria-label={`${b.name}的续订状态`} value="" onChange={(e) => {
                 const state = e.target.value as Boss['renewalState'];
-                const today = todayStr();
-                mutateBoss(b.id, boss => applyBossRenewalState(boss, state, today), state === 'renewed'
-                  ? { action: '同版本续期', detail: `临期提醒选择已续费 · ${today} 起` }
-                  : state === 'ending' ? { action: '归档老板', detail: '临期提醒选择不续订，自动归档' } : undefined);
+                setRenewalState(b.id, state);
               }}>
                 {/* 保留当前状态的显示，同时允许下一周期再次选择“已续费”。 */}
                 <option value="" disabled hidden>{RENEWAL_OPTIONS.find(([state]) => state === b.renewalState)?.[1] ?? '未处理'}</option>
                 {RENEWAL_OPTIONS.map(([state, label]) => <option key={state} value={state}>{label}</option>)}
               </select>
+              {b.reminderCopiedAt && (!b.reminderSentAt || b.reminderCopiedAt > b.reminderSentAt) && <button type="button" className="rounded-full bg-[var(--success-soft)] px-2 py-1 text-[11px] text-[var(--success)]" onClick={() => setRenewalState(b.id, 'reminded')}>已发出</button>}
+              {(b.reminderCopiedAt || b.reminderSentAt) && <p className="w-full text-[10px] font-semibold text-[var(--muted-text)]">
+                {b.reminderCopiedAt ? `上次复制 ${reminderTime(b.reminderCopiedAt)}` : ''}
+                {b.reminderCopiedAt && b.reminderSentAt ? ' · ' : ''}
+                {b.reminderSentAt ? `上次发出 ${reminderTime(b.reminderSentAt)}` : ' · 尚未确认发出'}
+              </p>}
             </div>
           );
         })}
@@ -704,6 +721,7 @@ function NewBossModal({ onClose, onCreated }: { onClose: () => void; onCreated: 
       b.challenges = Object.fromEntries(Object.entries(b.challenges).map(([key, value]) => [key, { ...value, enabled: true }])) as Boss['challenges'];
     }
     b.cycleDays = form.cycleDays;
+    b.renewalDays = form.cycleDays;
     b.startDate = form.startDate;
     // 同一版本的活动全服一样：新老板直接继承现有活动名称和图片
     const src = data.bosses.find((boss) => !boss.archived && cycleEndDate(boss) >= todayStr()) ?? data.bosses.find((boss) => !boss.archived);
@@ -813,7 +831,7 @@ function BossEditorLoader({ bossId }: { bossId: string }) {
 
 /* ---------- 右侧保存面板与保存提示 ---------- */
 function SaveBar() {
-  const { dirty, save, saveState, saveError, github, serverMode, adminKey, data, undo, canUndo, online } = useStore();
+  const { dirty, save, saveState, saveError, github, serverMode, adminKey, data, undo, canUndo, online, actionNotice } = useStore();
   const saving = saveState === 'saving';
   const failed = saveState === 'error';
   const destination = serverMode && adminKey ? '服务器' : github ? 'GitHub' : '本浏览器';
@@ -837,24 +855,32 @@ function SaveBar() {
           {canUndo && <button type="button" onClick={undo} disabled={saving} className="save-action save-action-secondary" aria-label="撤销上一步" title="撤销上一步"><RotateCcw size={15} /></button>}
         </div>
       </aside>
-      <SaveToast state={saveState} detail={failed ? saveError : github && !serverMode ? '约 1～2 分钟后页面生效' : `改动已保存到${destination}`} />
+      <SaveToast state={saveState} suppressed={!!actionNotice && !failed} detail={failed ? saveError : github && !serverMode ? '约 1～2 分钟后页面生效' : `改动已保存到${destination}`} />
+      {actionNotice && !failed && <ActionToast key={actionNotice.id} />}
     </>,
     document.body
   );
 }
 
-function SaveToast({ state, detail }: { state: string; detail: string }) {
+function SaveToast({ state, detail, suppressed = false }: { state: string; detail: string; suppressed?: boolean }) {
   const [notice, setNotice] = useState<{ state: 'saved' | 'error'; detail: string } | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const previousState = useRef('idle');
   // 保存状态回到 idle 时仍保留提示，让它完成自己的停留和退出动画。
   useEffect(() => {
-    if (state !== 'saved' && state !== 'error') return;
+    const previous = previousState.current;
+    previousState.current = state;
+    if (suppressed) {
+      const timer = window.setTimeout(() => setNotice(null), 0);
+      return () => window.clearTimeout(timer);
+    }
+    if ((state !== 'saved' && state !== 'error') || state === previous) return;
     const timer = window.setTimeout(() => {
       setNotice({ state, detail });
       setLeaving(false);
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [state, detail]);
+  }, [state, detail, suppressed]);
   useEffect(() => {
     if (notice?.state !== 'saved') return;
     const timer = window.setTimeout(() => setLeaving(true), 3500);
@@ -872,6 +898,31 @@ function SaveToast({ state, detail }: { state: string; detail: string }) {
         <p className="mt-1 break-words text-xs leading-5">{notice.detail}</p>
       </div>
       <button type="button" className="save-toast-close" disabled={leaving} onClick={() => setLeaving(true)} aria-label="关闭保存提示"><X size={16} /></button>
+    </div>
+  );
+}
+
+function ActionToast() {
+  const { actionNotice, canUndoNotice, undo, dismissNotice } = useStore();
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    if (actionNotice?.tone !== 'success') return;
+    const timer = window.setTimeout(() => setLeaving(true), 6500);
+    return () => window.clearTimeout(timer);
+  }, [actionNotice]);
+  if (!actionNotice) return null;
+  const failed = actionNotice.tone === 'error';
+  return (
+    <div className={`save-toast ${failed ? 'save-toast-error' : ''} ${leaving ? 'save-toast-leaving' : ''}`} role={failed ? 'alert' : 'status'} aria-live={failed ? 'assertive' : 'polite'} aria-atomic="true" onAnimationEnd={event => {
+      if (event.target === event.currentTarget && event.animationName === 'save-toast-exit' && leaving) dismissNotice(actionNotice.id);
+    }}>
+      <span className="save-toast-icon">{failed ? <Circle size={20} /> : <CheckCircle2 size={20} />}</span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-bold">{actionNotice.title}</p>
+        <p className="mt-1 break-words text-xs leading-5">{actionNotice.detail}</p>
+        {canUndoNotice && <button type="button" disabled={leaving} className="save-action mt-2" onClick={undo}>撤销此次操作</button>}
+      </div>
+      <button type="button" className="save-toast-close" disabled={leaving} onClick={() => setLeaving(true)} aria-label="关闭操作提示"><X size={16} /></button>
     </div>
   );
 }

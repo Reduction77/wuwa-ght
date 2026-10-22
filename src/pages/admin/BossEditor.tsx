@@ -2,7 +2,7 @@ import { tierServices, type Boss, type EventItem } from '@/types';
 import { useStore } from '@/lib/store';
 import DayGrid from '@/components/DayGrid';
 import EventCard from '@/components/EventCard';
-import { addDays, cycleWeeks, currentWeekIndex, fmtCN, isDateRangeInvalid, todayStr, weekRange } from '@/lib/dates';
+import { cycleEndDate, cycleWeeks, currentWeekIndex, fmtCN, isDateRangeInvalid, todayStr, weekRange } from '@/lib/dates';
 import { uploadRemoteImage } from '@/lib/github';
 import { uploadServerImage } from '@/lib/server';
 import { CheckCircle2, Circle, ImagePlus, RotateCcw, Trash2 } from 'lucide-react';
@@ -43,19 +43,20 @@ export default function BossEditor({ boss }: Props) {
   const curWeekIdx = currentWeekIndex(boss);
   const currentWeekKey = curWeekIdx >= 0 ? weekRange(boss, curWeekIdx).from : '';
   const weekDone = !!currentWeekKey && boss.weekly.includes(currentWeekKey);
-  const ended = today > addDays(boss.startDate, boss.cycleDays - 1);
+  const ended = today > cycleEndDate(boss);
   const notStarted = today < boss.startDate;
   const canQuickLog = !ended && !notStarted && boss.issue.kind !== 'paused';
   const duplicatePasscode = data.bosses.some((item) => item.id !== boss.id && item.passcode === boss.passcode);
 
   return (
-    <div className="space-y-5">
+    <fieldset disabled={boss.archived} className="min-w-0 space-y-5">
+      {boss.archived && <p className="paper-card px-5 py-4 text-sm text-[var(--ink-soft)]">此账号已归档，以下资料保持只读；恢复账号后可继续编辑。</p>}
       {/* 已到期提示 + 同版本续期 */}
-      {ended && (
+      {ended && !boss.archived && (
         <div className="paper-card flex flex-wrap items-center gap-3 px-6 py-5" style={{ background: 'var(--purple-soft)', borderColor: 'var(--purple-border)' }}>
           <div className="mr-auto">
             <p className="font-display text-lg" style={{ color: 'var(--purple)' }}>本周期已到期</p>
-            <p className="text-xs" style={{ color: 'var(--purple)' }}>同一版本内续费时，从今天开始新的日常周期；只清空日常打卡，本周周常、活动和挑战状态全部保留</p>
+            <p className="text-xs" style={{ color: 'var(--purple)' }}>到期后从今天开始新周期，旧日常存入历史；周常、活动和挑战进度保留。未到期续费会保留剩余天数及当前打卡。</p>
           </div>
           <button
             type="button"
@@ -128,11 +129,12 @@ export default function BossEditor({ boss }: Props) {
               <option value={5}>舰长（日体 + 周常 + 高难 · 30天）</option>
             </select>
           </Field>
-          <Field label="托管周期">
+          <Field label="每次续期天数">
             <CycleDaysPicker
-              value={boss.cycleDays}
-              onChange={(days) => mutateBoss(boss.id, (b) => ({ ...b, cycleDays: days }))}
+              value={boss.renewalDays ?? boss.cycleDays}
+              onChange={(days) => mutateBoss(boss.id, (b) => ({ ...b, cycleDays: b.cycleDays + days - (b.renewalDays ?? b.cycleDays), renewalDays: days }))}
             />
+            <p className="mt-1 text-[11px] text-[var(--muted-text)]">当前已购买共 {boss.cycleDays} 天，每次续费增加 {boss.renewalDays ?? boss.cycleDays} 天</p>
           </Field>
           <Field label="开始日期">
             <input type="date" className="input-soft" value={boss.startDate} onChange={(e) => e.target.value && mutateBoss(boss.id, (b) => ({ ...b, startDate: e.target.value }))} />
@@ -286,7 +288,7 @@ export default function BossEditor({ boss }: Props) {
       )}
 
       {/* 活动 */}
-      {boss.services.bigEvent && (
+      {(boss.services.bigEvent || boss.services.smallEvents) && (
         <section className="paper-card px-6 py-6">
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -299,7 +301,7 @@ export default function BossEditor({ boss }: Props) {
             />
           </div>
           <div className="mt-4 space-y-3">
-            <EventCard event={boss.bigEvent} badge="版本大活动" editable onToggle={() => mutateBoss(boss.id, (b) => ({ ...b, bigEvent: { ...b.bigEvent, done: !b.bigEvent.done } }))} onEdit={() => setEventEdit({ kind: 'big' })} />
+            {boss.services.bigEvent && <EventCard event={boss.bigEvent} badge="版本大活动" editable onToggle={() => mutateBoss(boss.id, (b) => ({ ...b, bigEvent: { ...b.bigEvent, done: !b.bigEvent.done } }))} onEdit={() => setEventEdit({ kind: 'big' })} />}
             {boss.services.smallEvents && (
               <div className="grid gap-3 md:grid-cols-3">
                 {boss.smallEvents.map((e, i) => (
@@ -398,7 +400,7 @@ export default function BossEditor({ boss }: Props) {
           onClose={() => setEventEdit(null)}
         />
       )}
-    </div>
+    </fieldset>
   );
 }
 

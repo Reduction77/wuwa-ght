@@ -154,7 +154,8 @@ function validateData(data) {
     if (passcodes.has(passcode)) return `查看口令重复：${passcode}`;
     passcodes.add(passcode);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(String(boss.startDate || ''))) return `${boss.name || boss.id} 的开始日期无效`;
-    if (!Number.isInteger(boss.cycleDays) || boss.cycleDays < 1 || boss.cycleDays > 365) return `${boss.name || boss.id} 的周期天数无效`;
+    const extended = Number.isInteger(boss.renewalDays) && boss.renewalDays >= 1 && boss.renewalDays <= 365;
+    if (!Number.isInteger(boss.cycleDays) || boss.cycleDays < 1 || boss.cycleDays > (extended ? 36500 : 365)) return `${boss.name || boss.id} 的周期天数无效`;
   }
   return '';
 }

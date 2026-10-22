@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applyBossRenewalState, renewBossForDate, resetBossVersionProgress, resetBossChallengeProgress, upcomingServiceEvents } from '../src/lib/boss-rules.ts';
+import { applyBossRenewalState, renewBossForDate, resetBossVersionProgress, resetBossChallengeProgress, syncBossEventMeta, upcomingServiceEvents } from '../src/lib/boss-rules.ts';
+import { cycleEndDate } from '../src/lib/dates.ts';
 
 function boss() {
   return {
@@ -81,15 +82,55 @@ test('临期选择已续费按原周期天数续期，只清日常并保留原�
 test('选择不续订同时标记并归档，托管资料完整保留', () => {
   const before = { ...boss(), archived: false };
   const snapshot = structuredClone(before);
-  assert.deepEqual(applyBossRenewalState(before, 'ending', '2026-10-22'), { ...before, archived: true, renewalState: 'ending' });
+  assert.deepEqual(applyBossRenewalState(before, 'ending', '2026-10-22'), { ...before, archived: true, archivedDay: '2026-10-22', renewalState: 'ending' });
   assert.deepEqual(before, snapshot);
 });
 
-test('未处理、已提醒和待续费仍然只更新状态', () => {
+test('未处理和待续费仍然只更新状态，已提醒记录实际发出时间', () => {
   const before = { ...boss(), archived: false };
-  for (const state of ['none', 'reminded', 'pending']) {
+  for (const state of ['none', 'pending']) {
     assert.deepEqual(applyBossRenewalState(before, state, '2026-10-22'), { ...before, renewalState: state });
   }
+  assert.deepEqual(applyBossRenewalState(before, 'reminded', '2026-10-22', '2026-10-22T04:00:00.000Z'), { ...before, renewalState: 'reminded', reminderSentAt: '2026-10-22T04:00:00.000Z' });
+});
+
+test('提前续费保留剩余天数和当前打卡，连续续费使用固定购买天数', () => {
+  const before = { ...boss(), startDate: '2026-10-01' };
+  const snapshot = structuredClone(before);
+  const renewed = renewBossForDate(before, '2026-10-27');
+  assert.equal(cycleEndDate(renewed), '2026-11-29');
+  assert.equal(renewed.startDate, before.startDate);
+  assert.deepEqual(renewed.daily, before.daily);
+  assert.deepEqual(renewed.cycleHistory, before.cycleHistory);
+  const again = renewBossForDate(renewed, '2026-11-26');
+  assert.equal(again.renewalDays, 30);
+  assert.equal(again.cycleDays, 90);
+  assert.equal(cycleEndDate(again), '2026-12-29');
+  const expired = renewBossForDate(again, '2026-12-31');
+  assert.equal(expired.startDate, '2026-12-31');
+  assert.equal(expired.cycleDays, 30);
+  assert.deepEqual(expired.daily, []);
+  assert.equal(expired.cycleHistory[0].cycleDays, 90);
+  assert.deepEqual(before, snapshot);
+});
+
+test('到期日当天续费和暂停顺延后续费都不会损失剩余服务', () => {
+  const before = { ...boss(), startDate: '2026-10-01', excludedDays: [{ date: '2026-10-10', reason: '暂停' }] };
+  const renewed = renewBossForDate(before, '2026-10-31');
+  assert.equal(cycleEndDate(renewed), '2026-11-30');
+  assert.deepEqual(renewed.excludedDays, before.excludedDays);
+});
+
+test('归档账号拒绝续费和活动资料同步，活动图和完成记录保持原样', () => {
+  const archived = { ...boss(), archived: true, archivedDay: '2026-10-22' };
+  assert.equal(renewBossForDate(archived, '2026-10-23'), archived);
+  assert.equal(applyBossRenewalState(archived, 'pending', '2026-10-23'), archived);
+  assert.equal(syncBossEventMeta(archived, 'big', { name: '新名称', image: 'new.webp' }), archived);
+  assert.equal(syncBossEventMeta(archived, 0, { name: '新小活动' }), archived);
+  const current = boss();
+  assert.equal(syncBossEventMeta(current, 'big', { name: '新大活动' }).bigEvent.name, '新大活动');
+  assert.equal(syncBossEventMeta(current, 0, { name: '新小活动' }).smallEvents[0].name, '新小活动');
+  assert.equal(syncBossEventMeta(current, 0, { name: '新小活动' }).smallEvents[0].done, true);
 });
 
 for (const [kind, label] of [['tower', '深塔'], ['sea', '海墟']]) {

@@ -53,8 +53,13 @@ test('服务器隔离老板数据并检测保存冲突', async (t) => {
   assert.equal(existsSync(join(uploadDir, 'orphan.webp')), false);
 
   current.bosses[0].bigEvent = { name: '', image: '', done: false };
+  current.bosses[0].cycleDays = 390;
+  current.bosses[0].renewalDays = 30;
   const saved = await fetch(`${base}/api/data`, { method: 'PUT', headers, body: JSON.stringify(current) });
   assert.equal(saved.status, 200);
+  const savedBody = await saved.json();
+  assert.equal(savedBody.bosses[0].cycleDays, 390);
+  assert.equal(savedBody.bosses[0].renewalDays, 30);
   const secondCleanup = await (await fetch(`${base}/api/cleanup-uploads`, { method: 'POST', headers })).json();
   assert.equal(secondCleanup.removed, 1);
   assert.equal(existsSync(join(uploadDir, 'used.webp')), false);

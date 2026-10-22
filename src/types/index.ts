@@ -59,7 +59,13 @@ export interface Boss {
   internalNote: string;
   tags: string[];
   archived: boolean;
+  /** 归档日用于冻结进度展示；旧备份没有该字段时仍可读取。 */
+  archivedDay?: string;
+  /** 每次购买的服务天数，提前续费累计 cycleDays 时保持不变。 */
+  renewalDays?: number;
   renewalState: RenewalState;
+  reminderCopiedAt?: string;
+  reminderSentAt?: string;
   issue: { kind: BossIssueKind; message: string; updatedAt: string };
   excludedDays: Array<{ date: string; reason: string }>;
   /** 套餐能力使用明确开关，不再依赖 tier 数字大小判断 */

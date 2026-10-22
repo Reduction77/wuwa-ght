@@ -1,10 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bossStats, cycleDates, cycleEndDate, isDateRangeInvalid, todayStr, weekRange } from '../src/lib/dates.ts';
+import { bossStats, cycleDates, cycleEndDate, isDateRangeInvalid, nextGameDayDelay, todayStr, weekRange } from '../src/lib/dates.ts';
 
 test('游戏日按北京时间凌晨4点切换', () => {
   assert.equal(todayStr(new Date('2026-08-19T19:59:59Z')), '2026-08-19');
   assert.equal(todayStr(new Date('2026-08-19T20:00:00Z')), '2026-08-20');
+});
+
+test('跨日定时只等待下一次北京时间4点，包含周一刷新边界', () => {
+  const before = new Date('2026-10-25T19:59:59.000Z');
+  assert.equal(nextGameDayDelay(before), 1050);
+  const after = new Date('2026-10-25T20:00:00.000Z');
+  assert.equal(todayStr(after), '2026-10-26');
+  assert.equal(nextGameDayDelay(after), 86400050);
 });
 
 test('活动开放日期不能晚于截止日期', () => {

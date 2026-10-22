@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { tierServices, type AuditEntry, type Boss, type SiteData } from '@/types';
+import { tierServices, type AuditEntry, type Boss, type RenewalState, type SiteData } from '@/types';
 import initialJson from '@/data/initial.json';
 import {
   type GithubConfig,
@@ -18,13 +18,28 @@ import {
   writeServerData,
 } from '@/lib/server';
 import { addDays, cycleEndDate, todayStr } from '@/lib/dates';
-import { renewBossForDate, resetBossVersionProgress } from '@/lib/boss-rules';
+import { applyBossRenewalState, resetBossVersionProgress, syncBossEventMeta } from '@/lib/boss-rules';
+import { useGameDay } from '@/lib/use-game-day';
 
 const LOCAL_KEY = 'zzbb-local-data';
 
 export type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+export interface ActionNotice {
+  id: number;
+  title: string;
+  detail: string;
+  tone: 'success' | 'error';
+  undoVersion?: number;
+}
 
 interface Store {
+  gameDay: string;
+  actionNotice: ActionNotice | null;
+  canUndoNotice: boolean;
+  showNotice: (title: string, detail: string, tone?: 'success' | 'error', undoable?: boolean) => void;
+  dismissNotice: (id?: number) => void;
+  setRenewalState: (id: string, state: RenewalState) => void;
+  recordReminderCopied: (id: string) => void;
   data: SiteData;
   loading: boolean;
   dirty: boolean;
@@ -47,7 +62,7 @@ interface Store {
   removeBoss: (id: string) => void;
   save: () => Promise<boolean>;
   reload: () => Promise<void>;
-  /** 同版本续期：从当前游戏日开始新的日常周期，只清空日常记录 */
+  /** 未到期保留剩余天数；到期后从当前游戏日开始新周期。 */
   renewBoss: (id: string) => void;
   /** 版本更新：重置进行中老板的版本任务，保留日常、周常、海墟、深塔 */
   resetVersionProgress: (version?: { name: string; expectedDays?: number }) => void;
@@ -108,12 +123,16 @@ export function normalizeSiteData(data: SiteData): SiteData {
         passcode: b.passcode ?? '0000',
         tier,
         cycleDays: b.cycleDays ?? 30,
+        renewalDays: Number.isInteger(b.renewalDays) && b.renewalDays! > 0 && b.renewalDays! <= 365 ? b.renewalDays : Math.min(365, b.cycleDays ?? 30),
         startDate,
         note: b.note ?? '',
         internalNote: b.internalNote ?? '',
         tags: Array.isArray(b.tags) ? b.tags.filter((tag) => typeof tag === 'string') : [],
         archived: b.archived ?? false,
+        ...(b.archived && b.archivedDay ? { archivedDay: b.archivedDay } : {}),
         renewalState: b.renewalState ?? 'none',
+        ...(b.reminderCopiedAt ? { reminderCopiedAt: b.reminderCopiedAt } : {}),
+        ...(b.reminderSentAt ? { reminderSentAt: b.reminderSentAt } : {}),
         issue: {
           kind: b.issue?.kind ?? 'none',
           message: b.issue?.message ?? '',
@@ -157,6 +176,7 @@ export function normalizeSiteData(data: SiteData): SiteData {
 }
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
+  const gameDay = useGameDay();
   const [data, setData] = useState<SiteData>(normalizeSiteData(initialJson as unknown as SiteData));
   const [loading, setLoading] = useState(true);
   const [dirty, setDirty] = useState(false);
@@ -171,6 +191,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const undoRef = useRef<SiteData | null>(null);
   const wasOfflineRef = useRef(!navigator.onLine);
   const [canUndo, setCanUndo] = useState(false);
+  const editVersionRef = useRef(0);
+  const savingRef = useRef<Promise<boolean> | null>(null);
+  const noticeIdRef = useRef(0);
+  const [actionNotice, setActionNotice] = useState<ActionNotice | null>(null);
+  const showNotice = useCallback((title: string, detail: string, tone: 'success' | 'error' = 'success', undoable = false) => {
+    setActionNotice({ id: ++noticeIdRef.current, title, detail, tone, ...(undoable ? { undoVersion: editVersionRef.current } : {}) });
+  }, []);
+  const dismissNotice = useCallback((id?: number) => {
+    setActionNotice(current => id !== undefined && current?.id !== id ? current : null);
+  }, []);
   useEffect(() => {
     dataRef.current = data;
   }, [data]);
@@ -261,6 +291,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const touch = useCallback((next: SiteData, audit?: Omit<AuditEntry, 'id' | 'at'>) => {
+    editVersionRef.current += 1;
     undoRef.current = dataRef.current;
     setCanUndo(true);
     if (audit) {
@@ -274,7 +305,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     dataRef.current = next;
     setData({ ...next });
     setDirty(true);
-    setSaveState('idle');
+    if (!savingRef.current) setSaveState('idle');
     try {
       localStorage.setItem(LOCAL_KEY, JSON.stringify(next));
     } catch {
@@ -287,21 +318,24 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     if (!previous) return;
     undoRef.current = null;
     setCanUndo(false);
-    previous.updatedAt = new Date().toISOString();
-    dataRef.current = previous;
-    setData({ ...previous });
+    editVersionRef.current += 1;
+    const restored = { ...previous, revision: dataRef.current.revision, updatedAt: new Date().toISOString() };
+    dataRef.current = restored;
+    setData(restored);
     setDirty(true);
-    setSaveState('idle');
+    if (!savingRef.current) setSaveState('idle');
+    showNotice('已撤销上一步', '资料已恢复，保存状态可在右侧查看。');
     try {
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(previous));
+      localStorage.setItem(LOCAL_KEY, JSON.stringify(restored));
     } catch {
       // 浏览器空间不足时仍保留内存中的撤销结果。
     }
-  }, []);
+  }, [showNotice]);
 
   const mutateBoss = useCallback(
     (id: string, fn: (b: Boss) => Boss, audit?: { action: string; detail?: string }) => {
       const cur = dataRef.current;
+      if (!cur.bosses.some(boss => boss.id === id && !boss.archived)) return;
       const bosses = cur.bosses.map((b) => (b.id === id ? fn({ ...b }) : b));
       touch({ ...cur, bosses }, audit ? { ...audit, bossId: id } : undefined);
     },
@@ -319,7 +353,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     (ids: string[], fn: (b: Boss) => Boss, audit?: { action: string; detail?: string }) => {
       const selected = new Set(ids);
       const cur = dataRef.current;
-      touch({ ...cur, bosses: cur.bosses.map((b) => selected.has(b.id) ? fn({ ...b }) : b) }, audit ? { ...audit, detail: `${audit.detail ?? ''}${audit.detail ? ' · ' : ''}${ids.length} 位` } : undefined);
+      touch({ ...cur, bosses: cur.bosses.map((b) => selected.has(b.id) && !b.archived ? fn({ ...b }) : b) }, audit ? { ...audit, detail: `${audit.detail ?? ''}${audit.detail ? ' · ' : ''}${ids.length} 位` } : undefined);
     },
     [touch]
   );
@@ -340,15 +374,27 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     [touch]
   );
 
-  const renewBoss = useCallback(
-    (id: string) => {
+  const setRenewalState = useCallback(
+    (id: string, state: RenewalState) => {
       const today = todayStr();
       const cur = dataRef.current;
-      const bosses = cur.bosses.map((b) => b.id === id ? renewBossForDate(b, today) : b);
-      touch({ ...cur, bosses }, { action: '同版本续期', bossId: id, detail: `${today} 起` });
+      const before = cur.bosses.find(boss => boss.id === id);
+      if (!before || before.archived) return;
+      const after = applyBossRenewalState(before, state, today);
+      const detail = state === 'renewed' ? `${cycleEndDate(before)} → ${cycleEndDate(after)}` : state === 'ending' ? '不续订，自动归档' : state === 'reminded' ? '已确认发出续期提醒' : undefined;
+      touch({ ...cur, bosses: cur.bosses.map(boss => boss.id === id ? after : boss) }, {
+        action: state === 'renewed' ? '同版本续期' : state === 'ending' ? '归档老板' : state === 'reminded' ? '发出续期提醒' : '更新续订状态', bossId: id, detail,
+      });
+      if (state === 'renewed') showNotice('续期已应用', `${before.name}：原到期日 ${cycleEndDate(before)} → 新到期日 ${cycleEndDate(after)}。${cycleEndDate(before) >= today ? '剩余天数和当前打卡已保留。' : '旧日常已存入历史，新周期从今天开始。'}保存状态见右侧。`, 'success', true);
+      if (state === 'ending') showNotice('已移入归档', `${before.name}的资料已保留，可在“查看归档”中恢复。保存状态见右侧。`, 'success', true);
+      if (state === 'reminded') showNotice('已记录发出时间', `${before.name}的提醒已标记为实际发出。`);
     },
-    [touch]
+    [touch, showNotice]
   );
+  const renewBoss = useCallback((id: string) => setRenewalState(id, 'renewed'), [setRenewalState]);
+  const recordReminderCopied = useCallback((id: string) => {
+    mutateBoss(id, boss => ({ ...boss, reminderCopiedAt: new Date().toISOString() }), { action: '复制续期提醒', detail: '仅复制，尚未确认发出' });
+  }, [mutateBoss]);
 
   const resetVersionProgress = useCallback((version?: { name: string; expectedDays?: number }) => {
     const cur = dataRef.current;
@@ -373,10 +419,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const archiveBoss = useCallback((id: string, archived: boolean) => {
     const cur = dataRef.current;
     const boss = cur.bosses.find((item) => item.id === id);
-    touch({ ...cur, bosses: cur.bosses.map((item) => item.id === id ? { ...item, archived } : item) }, {
+    if (!boss || boss.archived === archived) return;
+    touch({ ...cur, bosses: cur.bosses.map((item) => item.id === id ? { ...item, archived, archivedDay: archived ? todayStr() : undefined } : item) }, {
       action: archived ? '归档老板' : '恢复老板', bossId: id, detail: boss?.name,
     });
-  }, [touch]);
+    showNotice(archived ? '已移入归档' : '已恢复账号', archived ? `${boss.name}的资料已保留，可在“查看归档”中恢复。` : `${boss.name}已恢复到当前老板列表。`, 'success', true);
+  }, [touch, showNotice]);
 
   const setGithub = useCallback((c: GithubConfig | null) => {
     saveGithubConfig(c);
@@ -408,44 +456,50 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const syncEventMeta = useCallback(
     (kind: 'big' | number, patch: Partial<Pick<Boss['bigEvent'], 'name' | 'image' | 'openDate' | 'deadline'>>) => {
       const cur = dataRef.current;
-      const bosses = cur.bosses.map((b) => {
-        if (kind === 'big') return { ...b, bigEvent: { ...b.bigEvent, ...patch } };
-        const arr = [...b.smallEvents];
-        if (arr[kind]) arr[kind] = { ...arr[kind], ...patch };
-        return { ...b, smallEvents: arr };
-      });
+      const bosses = cur.bosses.map(boss => syncBossEventMeta(boss, kind, patch));
       touch({ ...cur, bosses });
     },
     [touch]
   );
 
-  const save = useCallback(async () => {
-    setSaveState('saving');
-    setSaveError('');
-    try {
-      localStorage.setItem(LOCAL_KEY, JSON.stringify(dataRef.current));
-      if (serverMode && adminKey) {
-        const saved = normalizeSiteData(JSON.parse(await writeServerData(adminKey, JSON.stringify(dataRef.current, null, 1))));
-        dataRef.current = saved;
-        setData(saved);
-        setSource('remote');
-      } else if (github) {
-        await writeRemoteData(
-          github,
-          JSON.stringify(dataRef.current, null, 1),
-          'chore: 更新托管数据'
-        );
-        setSource('remote');
+  const save = useCallback((): Promise<boolean> => {
+    if (savingRef.current) return savingRef.current;
+    const run = async () => {
+      setSaveState('saving');
+      setSaveError('');
+      try {
+        for (;;) {
+          const snapshot = dataRef.current;
+          const editVersion = editVersionRef.current;
+          try { localStorage.setItem(LOCAL_KEY, JSON.stringify(snapshot)); } catch { /* 本地缓存失败不阻止远端保存。 */ }
+          if (serverMode && adminKey) {
+            const saved = normalizeSiteData(JSON.parse(await writeServerData(adminKey, JSON.stringify(snapshot, null, 1))));
+            // 只在没有新编辑时接受完整回复；否则仅更新修订号，并继续提交新编辑。
+            const next = editVersion === editVersionRef.current ? saved : { ...dataRef.current, revision: saved.revision };
+            dataRef.current = next;
+            setData(next);
+            setSource('remote');
+          } else if (github) {
+            await writeRemoteData(github, JSON.stringify(snapshot, null, 1), 'chore: 更新托管数据');
+            setSource('remote');
+          }
+          try { localStorage.setItem(LOCAL_KEY, JSON.stringify(dataRef.current)); } catch { /* 保留内存中的最新编辑。 */ }
+          if (editVersion === editVersionRef.current) break;
+        }
+        setDirty(false);
+        setSaveState('saved');
+        setTimeout(() => setSaveState(s => s === 'saved' ? 'idle' : s), 2500);
+        return true;
+      } catch (error) {
+        setSaveError(error instanceof Error ? error.message : '保存失败');
+        setDirty(true);
+        setSaveState('error');
+        return false;
       }
-      setDirty(false);
-      setSaveState('saved');
-      setTimeout(() => setSaveState((s) => (s === 'saved' ? 'idle' : s)), 2500);
-      return true;
-    } catch (e) {
-      setSaveError(e instanceof Error ? e.message : '保存失败');
-      setSaveState('error');
-      return false;
-    }
+    };
+    const pending = run().finally(() => { savingRef.current = null; });
+    savingRef.current = pending;
+    return pending;
   }, [github, serverMode, adminKey]);
 
   // 服务器版自动保存；GitHub Pages 仍保留手动保存，避免每次输入都产生提交记录。
@@ -477,6 +531,13 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo<Store>(
     () => ({
+      gameDay,
+      actionNotice,
+      showNotice,
+      dismissNotice,
+      canUndoNotice: canUndo && actionNotice?.undoVersion === editVersionRef.current,
+      setRenewalState,
+      recordReminderCopied,
       data,
       loading,
       dirty,
@@ -505,7 +566,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       save,
       reload,
     }),
-    [data, loading, dirty, saveState, saveError, github, serverMode, adminKey, source, online, setGithub, setAdminKey, updateBoss, mutateBoss, mutateBosses, renewBoss, resetVersionProgress, archiveBoss, undo, canUndo, setAccepting, importData, syncEventMeta, addBoss, removeBoss, save, reload]
+    [gameDay, actionNotice, showNotice, dismissNotice, setRenewalState, recordReminderCopied, data, loading, dirty, saveState, saveError, github, serverMode, adminKey, source, online, setGithub, setAdminKey, updateBoss, mutateBoss, mutateBosses, renewBoss, resetVersionProgress, archiveBoss, undo, canUndo, setAccepting, importData, syncEventMeta, addBoss, removeBoss, save, reload]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
