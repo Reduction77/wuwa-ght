@@ -48,7 +48,7 @@ export interface Boss {
   account: string;
   /** 老板查看口令 */
   passcode: string;
-  /** 1 日体 | 2 日体+周常 | 3 日体+周常+大活动 | 4 全托 | 5 舰长（日体+周常+高难） */
+  /** 1 日体 | 2 日体+周常 | 3 日体+周常+高难/大活动 | 4 全托 | 5 舰长（日体+周常+高难） */
   tier: PackageTier;
   /** 本次老板托管周期天数，与游戏版本周期无关 */
   cycleDays: number;
@@ -119,7 +119,7 @@ export interface AuditEntry {
 export const TIER_LABEL: Record<PackageTier, string> = {
   1: '日体',
   2: '日体 + 周常',
-  3: '日体 + 周常 + 大活动',
+  3: '日体 + 周常 + 高难/大活动',
   4: '全托',
   5: '舰长',
 };
